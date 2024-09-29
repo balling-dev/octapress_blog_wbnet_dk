@@ -1,0 +1,310 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Installing R Packages RCurl and XML on Ubuntu 14.04 - Balling&#8217;s Bits</title>
+  <meta name="author" content="Kristoffer Winther Balling">
+
+  
+  <meta name="description" content="Installing R packages RCurl and XML on a fresh Ubuntu 14.04 LTS throws a few errors. RCurl throws the following error: 1
+2
+3
+checking for curl-config &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="https://blog.wbnet.dk/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Balling's Bits" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<!-- Add fancyBox -->
+<link rel="stylesheet" href="/stylesheets/jquery.fancybox.css" type="text/css" media="screen" />
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Balling&#8217;s Bits</a></h1>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.wbnet.dk" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/categories/tech">Tech Stuff</a></li>
+  <li><a href="/blog/categories/r">R</a></li>
+  <li><a href="/blog/categories/photo-of-the-day">Photos</a></li>
+  <li><a href="/blog/categories/opskrifter">Opskrifter</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Installing R Packages RCurl and XML on Ubuntu 14.04</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-11-03T20:14:16+01:00'><span class='date'><span class='date-month'>Nov</span> <span class='date-day'>3</span><span class='date-suffix'>rd</span>, <span class='date-year'>2014</span></span> <span class='time'>8:14 pm</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>Installing R packages <code>RCurl</code> and <code>XML</code> on a fresh Ubuntu 14.04 LTS throws a few errors.</p>
+
+<p><code>RCurl</code> throws the following error:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='splus'><span class='line'>checking <span class="kr">for</span> curl<span class="o">-</span>config... no
+</span><span class='line'>Cannot find curl<span class="o">-</span>config
+</span><span class='line'>ERROR<span class="o">:</span> configuration failed <span class="kr">for</span> package ‘RCurl’
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The fix is easy. Install <code>libcurl4</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>sudo apt-get install libcurl4-openssl-dev
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And then re-install the <code>RCurl</code> package.</p>
+
+<p><code>XML</code> throws another error:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='splus'><span class='line'>checking <span class="kr">for</span> xml2<span class="o">-</span>config... no
+</span><span class='line'>Cannot find xml2<span class="o">-</span>config
+</span><span class='line'>ERROR<span class="o">:</span> configuration failed <span class="kr">for</span> package ‘XML’
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>To fix it install <code>libxml2</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>sudo apt-get install libxml2-dev
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And then re-install the <code>XML</code> package.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Kristoffer Winther Balling</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2014-11-03T20:14:16+01:00'><span class='date'><span class='date-month'>Nov</span> <span class='date-day'>3</span><span class='date-suffix'>rd</span>, <span class='date-year'>2014</span></span> <span class='time'>8:14 pm</span></time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/r/'>r</a>, <a class='category' href='/blog/categories/software/'>software</a>, <a class='category' href='/blog/categories/ubuntu/'>ubuntu</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="https://blog.wbnet.dk/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04/" data-via="kwballing" data-counturl="https://blog.wbnet.dk/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/2014/10/22/setting-up-nginx-for-ssl-slash-tls/" title="Previous Post: Setting up Nginx for SSL/TLS">&laquo; Setting up Nginx for SSL/TLS</a>
+      
+      
+        <a class="basic-alignment right" href="/2014/11/15/dell-inspiron-1720-will-not-boot-caps-lock-blinking/" title="Next Post: Dell Inspiron 1720 Will Not Boot - CAPS Lock Blinking">Dell Inspiron 1720 Will Not Boot - CAPS Lock Blinking &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Kristoffer W. Balling</h1>
+  <p>Geek. Father-of-two. Principal Scientist.</p>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/2015/05/31/fully-encrypted-hetzner-vx6-vserver-with-ubuntu-14-dot-04-lts/">LUKS Encrypted Hetzner VX6 vServer With Ubuntu 14.04 LTS</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/25/setting-up-nemid-on-hardware-on-ubuntu-14-dot-04-lts/">Setting Up NEMID on Hardware on Ubuntu 14.04 LTS</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/15/dell-inspiron-1720-will-not-boot-caps-lock-blinking/">Dell Inspiron 1720 Will Not Boot - CAPS Lock Blinking</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04/">Installing R Packages RCurl and XML on Ubuntu 14.04</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/10/22/setting-up-nginx-for-ssl-slash-tls/">Setting Up Nginx for SSL/TLS</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/kwballing">@kwballing</a> on GitHub
+  
+  <script type="text/javascript">
+    $(document).ready(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'kwballing',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/80x15.png" /></a> <span xmlns:dct="https://purl.org/dc/terms/" property="dct:title">Balling&#8217;s Bits</span> by <a xmlns:cc="https://creativecommons.org/ns#" href="https://blog.wbnet.dk" property="cc:attributionName" rel="cc:attributionURL">Kristoffer Winther Balling</a> is licensed under a <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.<br />
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'ballingsbits';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'https://blog.wbnet.dk/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04/';
+        var disqus_url = 'https://blog.wbnet.dk/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+<!-- Add fancyBox -->
+<script type="text/javascript" src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript" src="/javascripts/wbnet.js"></script>
+
+
+
+</body>
+</html>

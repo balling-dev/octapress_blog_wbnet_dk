@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Non-tech | Balling's Bits]]></title>
+  <link href="https://blog.wbnet.dk/blog/categories/non-tech/atom.xml" rel="self"/>
+  <link href="https://blog.wbnet.dk/"/>
+  <updated>2015-06-01T11:34:54+02:00</updated>
+  <id>https://blog.wbnet.dk/</id>
+  <author>
+    <name><![CDATA[Kristoffer Winther Balling]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Photo of the Day: Furnace.]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/19/photo-of-the-day/"/>
+    <updated>2014-10-19T00:00:00+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/19/photo-of-the-day</id>
+    <content type="html"><![CDATA[<p><img class="fancybox" src="/images/20141019_potd.jpeg" width="600" title="&ldquo;2014-10-19: Furnace.&rdquo;" ></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Photo of the Day: Chestnut Yarn Spider.]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/18/photo-of-the-day/"/>
+    <updated>2014-10-18T00:00:00+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/18/photo-of-the-day</id>
+    <content type="html"><![CDATA[<p><img class="fancybox" src="/images/20141018_potd.jpeg" width="600" title="&ldquo;2014-10-18: Chestnut Yarn Spider.&rdquo;" ></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Photo of the Day: Autumn Is Here. Winter Is Coming.]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/17/photo-of-the-day/"/>
+    <updated>2014-10-17T00:00:00+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/17/photo-of-the-day</id>
+    <content type="html"><![CDATA[<p><img class="fancybox" src="/images/20141017_potd.jpeg" width="600" title="&ldquo;2014-10-17: Autumn is here. Winter is coming.&rdquo;" ></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Photo of the Day: Freshly Ground]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/16/photo-of-the-day/"/>
+    <updated>2014-10-16T00:00:00+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/16/photo-of-the-day</id>
+    <content type="html"><![CDATA[<p><img class="fancybox" src="/images/20141016_potd.jpeg" width="600" title="&ldquo;2014-10-16: Freshly Ground&rdquo;" ></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Photo of the Day: House of Stone ... And Glitter]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/15/photo-of-the-day/"/>
+    <updated>2014-10-15T00:00:00+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/15/photo-of-the-day</id>
+    <content type="html"><![CDATA[<p><img class="fancybox" src="/images/20141015_potd.jpeg" width="600" title="&ldquo;2014-10-15: House of Stone &hellip; and Glitter&rdquo;" ></p>
+]]></content>
+  </entry>
+  
+</feed>

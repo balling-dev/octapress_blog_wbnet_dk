@@ -1,0 +1,461 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Run a QEMU/KVM Virtual Machine in an OmniOS Zone - Balling&#8217;s Bits</title>
+  <meta name="author" content="Kristoffer Winther Balling">
+
+  
+  <meta name="description" content="It is possible to run QEMU/KVM virtual machines inside an OmniOS zone but it requires that the kvm kernel module is made available to the zone. Also &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="https://blog.wbnet.dk/2014/10/10/run-a-qemu-slash-kvm-virtual-machine-in-an-omnios-zone">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Balling's Bits" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<!-- Add fancyBox -->
+<link rel="stylesheet" href="/stylesheets/jquery.fancybox.css" type="text/css" media="screen" />
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Balling&#8217;s Bits</a></h1>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.wbnet.dk" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/categories/tech">Tech Stuff</a></li>
+  <li><a href="/blog/categories/r">R</a></li>
+  <li><a href="/blog/categories/photo-of-the-day">Photos</a></li>
+  <li><a href="/blog/categories/opskrifter">Opskrifter</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Run a QEMU/KVM Virtual Machine in an OmniOS Zone</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-10-10T09:29:31+02:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>10</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>9:29 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>It is possible to run QEMU/KVM virtual machines inside an <a href="https://blog.wbnet.dk/2014/10/10/creating-and-cloning-an-omnios-zone/">OmniOS zone</a> but it requires that the kvm kernel module is made available to the zone. Also, any raw volumes for the virtual machines must be made available to the zone. Here is an example zone configuration file for a QEMU/KVM capable zone:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>create -b
+</span><span class='line'><span class="nb">set </span><span class="nv">zonepath</span><span class="o">=</span>/tank/zones/example
+</span><span class='line'><span class="nb">set </span>ip-type<span class="o">=</span>exclusive
+</span><span class='line'><span class="nb">set </span><span class="nv">autoboot</span><span class="o">=</span><span class="nb">true</span>
+</span><span class='line'>add net
+</span><span class='line'><span class="nb">set </span><span class="nv">physical</span><span class="o">=</span>dmzexample0
+</span><span class='line'>end
+</span><span class='line'>add net
+</span><span class='line'><span class="nb">set </span><span class="nv">physical</span><span class="o">=</span>dmzexample1
+</span><span class='line'>end
+</span><span class='line'>add device
+</span><span class='line'><span class="nb">set </span><span class="nv">match</span><span class="o">=</span>/dev/kvm
+</span><span class='line'>end
+</span><span class='line'>add device
+</span><span class='line'><span class="nb">set </span><span class="nv">match</span><span class="o">=</span>/dev/zvol/dsk/tank/zones/kvmexample-vol
+</span><span class='line'>end
+</span><span class='line'>commit
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The <code>set match=/dev/kvm</code> makes the kernel kvm module available to the zone and the <code>set match=/dev/zvol/dsk/tank/zones/kvmexample-vol</code> makes the zfs volume <code>tank/zones/kvmexample-vol</code> available in the zone.</p>
+
+<p>The presence of two virtual network interfaces (<code>dmzexample0</code> and <code>dmzexample1</code>) makes it possible to use one for the zone (and thus VNC into the virtual machine) and the other for the virtual machine.</p>
+
+<p>A sample QEMU/KVM configuration script (<code>/root/kvmexample.sh</code>), in this case for a <a href="https://plex.tv/">Plex Media Server</a>, could look like this (ubuntu 14.04 iso mounted in the zone at <code>med/iso</code> via nfs):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">NAME</span><span class="o">=</span>kvmexample
+</span><span class='line'><span class="nv">VNIC0</span><span class="o">=</span>dmzexample1
+</span><span class='line'><span class="nv">HDD0</span><span class="o">=</span>/dev/zvol/dsk/tank/zones/kvmexample-vol
+</span><span class='line'><span class="nv">CD</span><span class="o">=</span>/med/iso/ubuntu-14.04-server-amd64.iso
+</span><span class='line'><span class="nv">VNC</span><span class="o">=</span>1
+</span><span class='line'><span class="nv">MEM</span><span class="o">=</span>8192
+</span><span class='line'>
+</span><span class='line'><span class="nv">mac0</span><span class="o">=</span><span class="sb">`</span>dladm show-vnic -po macaddress <span class="nv">$VNIC0</span><span class="sb">`</span>
+</span><span class='line'>
+</span><span class='line'>/usr/bin/qemu-system-x86_64 <span class="se">\</span>
+</span><span class='line'>-name <span class="nv">$NAME</span> <span class="se">\</span>
+</span><span class='line'>-boot <span class="nb">cd</span> <span class="se">\</span>
+</span><span class='line'>-enable-kvm <span class="se">\</span>
+</span><span class='line'>-vnc 0.0.0.0:<span class="nv">$VNC</span> -k da <span class="se">\</span>
+</span><span class='line'>-smp <span class="nv">cores</span><span class="o">=</span>10,threads<span class="o">=</span>1,sockets<span class="o">=</span><span class="m">1</span> <span class="se">\</span>
+</span><span class='line'>-m <span class="nv">$MEM</span> <span class="se">\</span>
+</span><span class='line'>-no-hpet <span class="se">\</span>
+</span><span class='line'>-localtime <span class="se">\</span>
+</span><span class='line'>-drive <span class="nv">file</span><span class="o">=</span><span class="nv">$HDD0</span>,if<span class="o">=</span>virtio,cache<span class="o">=</span>none,index<span class="o">=</span><span class="m">0</span> <span class="se">\</span>
+</span><span class='line'>-drive <span class="nv">file</span><span class="o">=</span><span class="nv">$CD</span>,media<span class="o">=</span>cdrom,if<span class="o">=</span>ide,index<span class="o">=</span><span class="m">2</span>  <span class="se">\</span>
+</span><span class='line'>-net nic,vlan<span class="o">=</span>40,name<span class="o">=</span>net0,model<span class="o">=</span>virtio,macaddr<span class="o">=</span><span class="nv">$mac0</span> <span class="se">\</span>
+</span><span class='line'>-net vnic,vlan<span class="o">=</span>40,name<span class="o">=</span>net0,ifname<span class="o">=</span><span class="nv">$VNIC0</span>,macaddr<span class="o">=</span><span class="nv">$mac0</span> <span class="se">\</span>
+</span><span class='line'>-vga std <span class="se">\</span>
+</span><span class='line'>-pidfile /root/<span class="nv">$NAME</span>.pid <span class="se">\</span>
+</span><span class='line'>-daemonize
+</span><span class='line'>
+</span><span class='line'><span class="k">if</span> <span class="o">[</span> <span class="nv">$?</span> -gt <span class="m">0</span> <span class="o">]</span><span class="p">;</span> <span class="k">then</span>
+</span><span class='line'>    <span class="nb">echo</span> <span class="s2">&quot;Failed to start VM&quot;</span>
+</span><span class='line'><span class="k">fi</span>
+</span><span class='line'>
+</span><span class='line'><span class="nv">port</span><span class="o">=</span><span class="sb">`</span>expr <span class="m">5900</span> + <span class="nv">$VNC</span><span class="sb">`</span>
+</span><span class='line'><span class="nv">public_nic</span><span class="o">=</span><span class="k">$(</span>dladm show-vnic<span class="p">|</span>grep vnic0<span class="p">|</span>awk <span class="s1">&#39;{print $2}&#39;</span><span class="k">)</span>
+</span><span class='line'><span class="nv">public_ip</span><span class="o">=</span><span class="k">$(</span>ifconfig <span class="nv">$public_nic</span><span class="p">|</span>grep inet<span class="p">|</span>awk <span class="s1">&#39;{print $2}&#39;</span><span class="k">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;Started VM: $NAME&quot;</span>
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;VNC available at: host IP ${public_ip} port ${port}&quot;</span>
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;QEMU Monitor, do: # telnet localhost $TLN. Note: use Control ] to exit monitor before quit!</span>
+</span><span class='line'><span class="s2">&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>To control (start/stop) the virtual machine as a service using <code>svcadm</code> create a <code>/root/kvmexample.xml</code> manifest (file):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='xml'><span class='line'><span class="cp">&lt;?xml version=&#39;1.0&#39;?&gt;</span>
+</span><span class='line'><span class="cp">&lt;!DOCTYPE service_bundle SYSTEM &#39;/usr/share/lib/xml/dtd/service_bundle.dtd.1&#39;&gt;</span>
+</span><span class='line'><span class="nt">&lt;service_bundle</span> <span class="na">type=</span><span class="s">&#39;manifest&#39;</span> <span class="na">name=</span><span class="s">&#39;export&#39;</span><span class="nt">&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;service</span> <span class="na">name=</span><span class="s">&#39;kvm/kvmexample&#39;</span> <span class="na">type=</span><span class="s">&#39;service&#39;</span> <span class="na">version=</span><span class="s">&#39;0&#39;</span><span class="nt">&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;create_default_instance</span> <span class="na">enabled=</span><span class="s">&#39;true&#39;</span><span class="nt">/&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;single_instance/&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;dependency</span> <span class="na">name=</span><span class="s">&#39;network&#39;</span> <span class="na">grouping=</span><span class="s">&#39;require_all&#39;</span> <span class="na">restart_on=</span><span class="s">&#39;none&#39;</span> <span class="na">type=</span><span class="s">&#39;service&#39;</span><span class="nt">&gt;</span>
+</span><span class='line'>            <span class="nt">&lt;service_fmri</span> <span class="na">value=</span><span class="s">&#39;svc:/milestone/network:default&#39;</span> <span class="nt">/&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;/dependency&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;dependency</span> <span class="na">name=</span><span class="s">&#39;filesystem&#39;</span> <span class="na">grouping=</span><span class="s">&#39;require_all&#39;</span> <span class="na">restart_on=</span><span class="s">&#39;none&#39;</span> <span class="na">type=</span><span class="s">&#39;service&#39;</span><span class="nt">&gt;</span>
+</span><span class='line'>            <span class="nt">&lt;service_fmri</span> <span class="na">value=</span><span class="s">&#39;svc:/system/filesystem/local:default&#39;</span> <span class="nt">/&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;/dependency&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;exec_method</span> <span class="na">name=</span><span class="s">&#39;start&#39;</span> <span class="na">type=</span><span class="s">&#39;method&#39;</span> <span class="na">exec=</span><span class="s">&#39;/root/kvmexample.sh&#39;</span> <span class="na">timeout_seconds=</span><span class="s">&#39;60&#39;</span><span class="nt">/&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;exec_method</span> <span class="na">name=</span><span class="s">&#39;stop&#39;</span> <span class="na">type=</span><span class="s">&#39;method&#39;</span> <span class="na">exec=</span><span class="s">&#39;:kill&#39;</span> <span class="na">timeout_seconds=</span><span class="s">&#39;60&#39;</span><span class="nt">/&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;stability</span> <span class="na">value=</span><span class="s">&#39;Unstable&#39;</span><span class="nt">/&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;template&gt;</span>
+</span><span class='line'>            <span class="nt">&lt;common_name&gt;</span>
+</span><span class='line'>                <span class="nt">&lt;loctext</span> <span class="na">xml:lang=</span><span class="s">&#39;C&#39;</span><span class="nt">&gt;</span>KVM-kvmexample<span class="nt">&lt;/loctext&gt;</span>
+</span><span class='line'>            <span class="nt">&lt;/common_name&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;/template&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;/service&gt;</span>
+</span><span class='line'><span class="nt">&lt;/service_bundle&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Import the manifest:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>svccfg import -f kvmexample.xml
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And start the virtual machine:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>svcadm <span class="nb">enable </span>kvmexample
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Use a VNCviewer to connect to the <strong>zones</strong> ip-address (on port 5901) to view the display output from the virtual machine.</p>
+
+<p>Stop the virtual machine using:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>svcadm disable kvmexample
+</span></code></pre></td></tr></table></div></figure>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Kristoffer Winther Balling</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2014-10-10T09:29:31+02:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>10</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>9:29 am</span></time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/omnios/'>omnios</a>, <a class='category' href='/blog/categories/software/'>software</a>, <a class='category' href='/blog/categories/tech/'>tech</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="https://blog.wbnet.dk/2014/10/10/run-a-qemu-slash-kvm-virtual-machine-in-an-omnios-zone/" data-via="kwballing" data-counturl="https://blog.wbnet.dk/2014/10/10/run-a-qemu-slash-kvm-virtual-machine-in-an-omnios-zone/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/2014/10/10/install-packages-from-joyent-slash-smartos-repository-in-omnios/" title="Previous Post: Install packages from Joyent/SmartOS repository in OmniOS">&laquo; Install packages from Joyent/SmartOS repository in OmniOS</a>
+      
+      
+        <a class="basic-alignment right" href="/2014/10/15/photo-of-the-day/" title="Next Post: Photo of the Day: House of Stone ... and Glitter">Photo of the Day: House of Stone &#8230; and Glitter &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Kristoffer W. Balling</h1>
+  <p>Geek. Father-of-two. Principal Scientist.</p>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/2015/05/31/fully-encrypted-hetzner-vx6-vserver-with-ubuntu-14-dot-04-lts/">LUKS Encrypted Hetzner VX6 vServer With Ubuntu 14.04 LTS</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/25/setting-up-nemid-on-hardware-on-ubuntu-14-dot-04-lts/">Setting Up NEMID on Hardware on Ubuntu 14.04 LTS</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/15/dell-inspiron-1720-will-not-boot-caps-lock-blinking/">Dell Inspiron 1720 Will Not Boot - CAPS Lock Blinking</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04/">Installing R Packages RCurl and XML on Ubuntu 14.04</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/10/22/setting-up-nginx-for-ssl-slash-tls/">Setting Up Nginx for SSL/TLS</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/kwballing">@kwballing</a> on GitHub
+  
+  <script type="text/javascript">
+    $(document).ready(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'kwballing',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/80x15.png" /></a> <span xmlns:dct="https://purl.org/dc/terms/" property="dct:title">Balling&#8217;s Bits</span> by <a xmlns:cc="https://creativecommons.org/ns#" href="https://blog.wbnet.dk" property="cc:attributionName" rel="cc:attributionURL">Kristoffer Winther Balling</a> is licensed under a <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.<br />
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'ballingsbits';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'https://blog.wbnet.dk/2014/10/10/run-a-qemu-slash-kvm-virtual-machine-in-an-omnios-zone/';
+        var disqus_url = 'https://blog.wbnet.dk/2014/10/10/run-a-qemu-slash-kvm-virtual-machine-in-an-omnios-zone/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+<!-- Add fancyBox -->
+<script type="text/javascript" src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript" src="/javascripts/wbnet.js"></script>
+
+
+
+</body>
+</html>

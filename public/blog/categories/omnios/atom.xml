@@ -1,0 +1,584 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Omnios | Balling's Bits]]></title>
+  <link href="https://blog.wbnet.dk/blog/categories/omnios/atom.xml" rel="self"/>
+  <link href="https://blog.wbnet.dk/"/>
+  <updated>2015-06-01T11:34:54+02:00</updated>
+  <id>https://blog.wbnet.dk/</id>
+  <author>
+    <name><![CDATA[Kristoffer Winther Balling]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Setting Up Nginx and PHP-FPM in an OmniOS Zone]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/21/setting-up-nginx-and-php-fpm-in-an-omnios-zone/"/>
+    <updated>2014-10-21T22:41:35+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/21/setting-up-nginx-and-php-fpm-in-an-omnios-zone</id>
+    <content type="html"><![CDATA[<p>Start by configuring a <a href="https://blog.wbnet.dk/2014/10/10/creating-and-cloning-an-omnios-zone/">zone</a> and <a href="https://blog.wbnet.dk/2014/10/10/install-packages-from-joyent-slash-smartos-repository-in-omnios/">install the Joyent/SmartOS package manager</a>.</p>
+
+<p>Then install Nginx and PHP-FPM (v5.5):</p>
+
+<pre><code class="bash">pkgin install nginx php55-fpm
+calculating dependencies... done.
+nothing to upgrade.
+7 packages to be installed: xmlcatmgr-2.2nb1 perl-5.20.0nb2 pcre-8.35nb1 php-5.5.16 libxml2-2.9.1nb2 nginx-1.6.0 php55-fpm-5.5.16 (28M to download, 105M to install)
+proceed ? [Y/n] y
+downloading packages...
+[...]
+nginx-1.6.0: Creating group ``www''
+nginx-1.6.0: Creating user ``www''
+[...]
+============================================================================
+This package has SMF support.  You may use svcadm(1M) to 'enable', 'disable'
+or 'restart' services.  To enable the instance(s) for this package, run:
+
+        /usr/sbin/svcadm enable svc:/pkgsrc/nginx:default
+
+Use svcs(1) to check on service status.  See smf(5) for more information.
+============================================================================
+[...]
+installing php55-fpm-5.5.16...
+php55-fpm-5.5.16: copying /opt/local/share/examples/php/php-fpm.conf to /opt/local/etc/php-fpm.conf
+============================================================================
+This package has SMF support.  You may use svcadm(1M) to 'enable', 'disable'
+or 'restart' services.  To enable the instance(s) for this package, run:
+
+        /usr/sbin/svcadm enable svc:/pkgsrc/php-fpm:default
+
+Use svcs(1) to check on service status.  See smf(5) for more information.
+============================================================================
+</code></pre>
+
+<p>As seen above a <code>www</code> user and <code>www</code> group is created for Nginx/web content. Start the Nginx web-server:</p>
+
+<pre><code class="bash">svcadm enable nginx
+</code></pre>
+
+<p>Browse to <code>http://ip-address</code>, and you should see the Nginx welcome page.</p>
+
+<p>Here is a minimal Nginx configuration file (<code>/opt/local/etc/nginx/nginx.conf</code>) to enable PHP-FPM:</p>
+
+<pre><code class="bash">user   www  www;
+worker_processes  1;
+events {
+    worker_connections  1024;
+}
+http {
+    include       /opt/local/etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    sendfile        on;
+    keepalive_timeout  65;
+    server {
+        listen       80;
+        server_name  localhost;
+
+        location / {
+            root   /www;
+            index  index.php index.html index.htm;
+        }
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   share/examples/nginx/html;
+        }
+
+        # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
+        #
+        location ~ \.php$ {
+            root           /www;
+            fastcgi_pass   127.0.0.1:9000;
+            fastcgi_index  index.php;
+            fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+            include        /opt/local/etc/nginx/fastcgi_params;
+        }
+    }
+}
+</code></pre>
+
+<p>Create a <code>/www</code> directory to hold html/php files and create an <code>index.php</code> file:</p>
+
+<pre><code class="php">&lt;?php
+phpinfo();
+?&gt;
+</code></pre>
+
+<p>Then restart Nginx and start PHP-FPM:</p>
+
+<pre><code class="bash">svcadm disable nginx &amp;&amp; svcadm enable nginx &amp;&amp; svcadm enable php-fpm
+</code></pre>
+
+<p>Browse to <code>http://ip-address</code> to verify that the PHP installation is working and to view PHP information.</p>
+
+<h2>Extensions</h2>
+
+<p>Search for available PHP extensions:</p>
+
+<pre><code class="bash">pkgin search php55-*
+php55-zlib-5.5.16nb1  PHP extension for zlib compression
+php55-zip-5.5.16     PHP extension for ZIP archive handling
+php55-zendoptimizerplus-7.0.0  Zend opcode cache and optimizer for PHP
+php55-yaz-1.1.1nb9   PHP extension for YAZ
+php55-xsl-5.5.16nb1  PHP extension for XSLT functions
+php55-xmlrpc-5.5.16  PHP extension for XML-RPC support
+php55-wddx-5.5.16    PHP extension for WDDX support
+php55-uploadprogress-1.0.1  PHP extension to track progress of a file upload
+php55-tt-rss-fever-plugin-1.2  Fever emulation plugin for Tiny Tiny RSS
+php55-tt-rss-1.12    Tiny Tiny RSS is an open source web-based RSS feed reader
+php55-tiki6-6.8nb1   Tiki Wiki CMS Groupware web-based application
+php55-tidy-5.5.16    PHP extension for tidy functions
+php55-sysvshm-5.5.16  PHP extension for SysV shared memory support
+php55-sysvsem-5.5.16  PHP extension for SysV semaphore support
+php55-sysvmsg-5.5.16  PHP extension for SysV IPC Message Queues support
+php55-ssh2-0.12      PHP bindings to the functions of libssh2
+php55-ssdeep-1.0.2   PHP extension for ssdeep
+[...]
+</code></pre>
+
+<p>To install a PHP extension install it, add the extension to <code>/opt/local/etc/php.ini</code>, and then restart PHP-FPM:</p>
+
+<pre><code>pkgin -y install php55-gd
+calculating dependencies... done.
+
+nothing to upgrade.
+4 packages to be installed: png-1.6.12 libjpeg-turbo-1.3.0nb1 freetype2-2.5.3nb1 php55-gd-5.5.16nb1 (2201K to download, 6474K to install)
+
+downloading packages...
+[...]
+installing packages...
+installing png-1.6.12...
+installing libjpeg-turbo-1.3.0nb1...
+installing freetype2-2.5.3nb1...
+installing php55-gd-5.5.16nb1...
+===========================================================================
+$NetBSD: MESSAGE.module,v 1.2 2004/11/05 21:50:11 jdolecek Exp $
+
+To enable this module, add the following to /opt/local/etc/php.ini:
+
+    extension=gd.so
+
+and make sure extension_dir points to the dir where gd.so is.
+
+Then restart your PHP5.5-enabled HTTP server to load this module.
+===========================================================================
+pkg_install warnings: 0, errors: 0
+reading local summary...
+processing local summary...
+updating database: 100%
+marking php55-gd-5.5.16nb1 as non auto-removable
+</code></pre>
+
+<p>Restart PHP-FPM</p>
+
+<pre><code class="bash">svcadm restart php-fpm
+</code></pre>
+
+<p>Now browse to <code>http://ip-address</code> and check that the extension (gd) is enabled.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Run a QEMU/KVM Virtual Machine in an OmniOS Zone]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/10/run-a-qemu-slash-kvm-virtual-machine-in-an-omnios-zone/"/>
+    <updated>2014-10-10T09:29:31+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/10/run-a-qemu-slash-kvm-virtual-machine-in-an-omnios-zone</id>
+    <content type="html"><![CDATA[<p>It is possible to run QEMU/KVM virtual machines inside an <a href="https://blog.wbnet.dk/2014/10/10/creating-and-cloning-an-omnios-zone/">OmniOS zone</a> but it requires that the kvm kernel module is made available to the zone. Also, any raw volumes for the virtual machines must be made available to the zone. Here is an example zone configuration file for a QEMU/KVM capable zone:</p>
+
+<pre><code class="bash">create -b
+set zonepath=/tank/zones/example
+set ip-type=exclusive
+set autoboot=true
+add net
+set physical=dmzexample0
+end
+add net
+set physical=dmzexample1
+end
+add device
+set match=/dev/kvm
+end
+add device
+set match=/dev/zvol/dsk/tank/zones/kvmexample-vol
+end
+commit
+</code></pre>
+
+<p>The <code>set match=/dev/kvm</code> makes the kernel kvm module available to the zone and the <code>set match=/dev/zvol/dsk/tank/zones/kvmexample-vol</code> makes the zfs volume <code>tank/zones/kvmexample-vol</code> available in the zone.</p>
+
+<p>The presence of two virtual network interfaces (<code>dmzexample0</code> and <code>dmzexample1</code>) makes it possible to use one for the zone (and thus VNC into the virtual machine) and the other for the virtual machine.</p>
+
+<p>A sample QEMU/KVM configuration script (<code>/root/kvmexample.sh</code>), in this case for a <a href="https://plex.tv/">Plex Media Server</a>, could look like this (ubuntu 14.04 iso mounted in the zone at <code>med/iso</code> via nfs):</p>
+
+<pre><code class="bash">NAME=kvmexample
+VNIC0=dmzexample1
+HDD0=/dev/zvol/dsk/tank/zones/kvmexample-vol
+CD=/med/iso/ubuntu-14.04-server-amd64.iso
+VNC=1
+MEM=8192
+
+mac0=`dladm show-vnic -po macaddress $VNIC0`
+
+/usr/bin/qemu-system-x86_64 \
+-name $NAME \
+-boot cd \
+-enable-kvm \
+-vnc 0.0.0.0:$VNC -k da \
+-smp cores=10,threads=1,sockets=1 \
+-m $MEM \
+-no-hpet \
+-localtime \
+-drive file=$HDD0,if=virtio,cache=none,index=0 \
+-drive file=$CD,media=cdrom,if=ide,index=2  \
+-net nic,vlan=40,name=net0,model=virtio,macaddr=$mac0 \
+-net vnic,vlan=40,name=net0,ifname=$VNIC0,macaddr=$mac0 \
+-vga std \
+-pidfile /root/$NAME.pid \
+-daemonize
+
+if [ $? -gt 0 ]; then
+    echo "Failed to start VM"
+fi
+
+port=`expr 5900 + $VNC`
+public_nic=$(dladm show-vnic|grep vnic0|awk '{print $2}')
+public_ip=$(ifconfig $public_nic|grep inet|awk '{print $2}')
+
+echo "Started VM: $NAME"
+echo "VNC available at: host IP ${public_ip} port ${port}"
+echo "QEMU Monitor, do: # telnet localhost $TLN. Note: use Control ] to exit monitor before quit!
+"
+</code></pre>
+
+<p>To control (start/stop) the virtual machine as a service using <code>svcadm</code> create a <code>/root/kvmexample.xml</code> manifest (file):</p>
+
+<pre><code class="xml">&lt;?xml version='1.0'?&gt;
+&lt;!DOCTYPE service_bundle SYSTEM '/usr/share/lib/xml/dtd/service_bundle.dtd.1'&gt;
+&lt;service_bundle type='manifest' name='export'&gt;
+    &lt;service name='kvm/kvmexample' type='service' version='0'&gt;
+        &lt;create_default_instance enabled='true'/&gt;
+        &lt;single_instance/&gt;
+        &lt;dependency name='network' grouping='require_all' restart_on='none' type='service'&gt;
+            &lt;service_fmri value='svc:/milestone/network:default' /&gt;
+        &lt;/dependency&gt;
+        &lt;dependency name='filesystem' grouping='require_all' restart_on='none' type='service'&gt;
+            &lt;service_fmri value='svc:/system/filesystem/local:default' /&gt;
+        &lt;/dependency&gt;
+        &lt;exec_method name='start' type='method' exec='/root/kvmexample.sh' timeout_seconds='60'/&gt;
+        &lt;exec_method name='stop' type='method' exec=':kill' timeout_seconds='60'/&gt;
+        &lt;stability value='Unstable'/&gt;
+        &lt;template&gt;
+            &lt;common_name&gt;
+                &lt;loctext xml:lang='C'&gt;KVM-kvmexample&lt;/loctext&gt;
+            &lt;/common_name&gt;
+        &lt;/template&gt;
+    &lt;/service&gt;
+&lt;/service_bundle&gt;
+</code></pre>
+
+<p>Import the manifest:</p>
+
+<pre><code class="bash">svccfg import -f kvmexample.xml
+</code></pre>
+
+<p>And start the virtual machine:</p>
+
+<pre><code class="bash">svcadm enable kvmexample
+</code></pre>
+
+<p>Use a VNCviewer to connect to the <strong>zones</strong> ip-address (on port 5901) to view the display output from the virtual machine.</p>
+
+<p>Stop the virtual machine using:</p>
+
+<pre><code class="bash">svcadm disable kvmexample
+</code></pre>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Install Packages From Joyent/SmartOS Repository in OmniOS]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/10/install-packages-from-joyent-slash-smartos-repository-in-omnios/"/>
+    <updated>2014-10-10T09:28:19+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/10/install-packages-from-joyent-slash-smartos-repository-in-omnios</id>
+    <content type="html"><![CDATA[<p>There are a few issues with the OmniOS package repositories as mentioned by <strong>gea</strong> of <a href="http://www.napp-it.org/downloads/binaries_en.html">napp-it</a>:</p>
+
+<ul>
+<li>Applications are spread over several repositories</li>
+<li>Applications are sometimes outdated without regular updates</li>
+<li>The repositories contain only a few applications</li>
+<li>The repositories are OS dependent</li>
+</ul>
+
+
+<p>In contrast, the <a href="http://pkgsrc.joyent.com/packages/SmartOS/2014Q2/x86_64/All/">Joyent/SmartOS package repositories</a> contain <em>a lot</em> of useful packages in one place, and are frequently updated.</p>
+
+<p>To use Joyent/SmartOS packages in OmniOS (here in a zone) start by installing gnu-tar (<code>gtar</code>):</p>
+
+<pre><code class="bash">pkg install gnu-tar
+           Packages to install:  1
+       Create boot environment: No
+Create backup boot environment: No
+
+DOWNLOAD               PKGS       FILES    XFER (MB)
+Completed               1/1       41/41      0.9/0.9
+
+PHASE                                        ACTIONS
+Install Phase                                123/123
+
+PHASE                                          ITEMS
+Package State Update Phase                       1/1
+Image State Update Phase                         2/2
+</code></pre>
+
+<p>Next, install the Joyent/SmartOS bootstrap loader (modify <code>2014Q2-x86_64</code> to match current repository and architecture):</p>
+
+<pre><code class="bash">curl http://pkgsrc.joyent.com/packages/SmartOS/bootstrap/bootstrap-2014Q2-x86_64.tar.gz | \
+gtar -zxpf - -C /
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 30.9M  100 30.9M    0     0   587k      0  0:00:54  0:00:54 --:--:--  642k
+</code></pre>
+
+<p>Since Joyent/SmartOS packages are installed in <code>/opt/local</code> update your path (this can be done permanently by modifying the <code>PATH</code> in <code>~./profile</code>):</p>
+
+<pre><code class="bash">export PATH=/opt/local/sbin:/opt/local/bin:$PATH
+</code></pre>
+
+<p>Update the repository database:</p>
+
+<pre><code class="bash">pkgin -y update
+reading local summary...
+processing local summary...
+updating database: 100%
+pkg_summary.bz2                                    100% 1919KB 479.8KB/s  29.3KB/s   00:04
+processing remote summary (http://pkgsrc.joyent.com/packages/SmartOS/2014Q2/x86_64/All)...
+updating database: 100%
+</code></pre>
+
+<p>You are ready to search or install packages:</p>
+
+<pre><code class="bash">pkgin search php55-*
+pkgin -y install apache-2.4.10
+</code></pre>
+
+<p>All packages can be viewed at the <a href="http://pkgsrc.joyent.com/packages/SmartOS/2014Q2/x86_64/All/">repository</a>.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Creating and Cloning an OmniOS Zone]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/10/creating-and-cloning-an-omnios-zone/"/>
+    <updated>2014-10-10T08:51:53+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/10/creating-and-cloning-an-omnios-zone</id>
+    <content type="html"><![CDATA[<p>An OmniOS/Solaris (non-global) zone acts as completely isolated virtual server within a single operating system instance and shares the kernel with the global zone. It shares resources (CPU and memory) with the global zone and there is close to no overhead in performance. It is an ideal way to isolate different services on a server.</p>
+
+<p>If you are planning on running multiple zones (e.g one for each service), you can save time and resources (disk space) by installing a template zone (base) and then cloning it to make new zones (see end of this post on how to clone an existing zone).</p>
+
+<p>To create a new zone start by creating a zone configuration file (<code>example.conf</code>):</p>
+
+<pre><code class="bash">create -b
+set zonepath=/tank/zones/example
+set ip-type=exclusive
+set autoboot=true
+add net
+set physical=dmzexample0
+end
+commit
+</code></pre>
+
+<p>A ZFS volume will be created at the zonepath <code>/tank/zones/example</code>. The <code>ip-type=exclusive</code> implies that the network stack is separate from the global-zone. The zone will boot upon system boot due to <code>autoboot=true</code>. A single network interface (<code>dmzexample0</code>) is available from within the zone.</p>
+
+<p>Next create the network interface (in the global zone):</p>
+
+<pre><code class="bash">dladm create-vnic dmzexample0 -l aggr0 -v 40
+</code></pre>
+
+<p>In this case the <code>dmzexample0</code> VNIC uses the link <code>aggr0</code> and is assigned to <code>vlan 40</code>, since the zone is to reside in the DMZ.</p>
+
+<p>Import the zone using <code>zonecfg</code> (in this case the name of the zone will be example):</p>
+
+<pre><code class="bash">zonecfg -z example -f example.conf
+</code></pre>
+
+<p>Next install the zone using <code>zoneadm</code> (this takes a couple of minutes):</p>
+
+<pre><code class="">zoneadm -z example install
+A ZFS file system has been created for this zone.
+   Publisher: Using omnios (http://pkg.omniti.com/omnios/release/ ).
+   Publisher: Using ms.omniti.com (http://pkg.omniti.com/omniti-ms/).
+       Image: Preparing at /tank/zones/example/root.
+       Cache: Using /var/pkg/publisher.
+Sanity Check: Looking for 'entire' incorporation.
+  Installing: Packages (output follows)
+           Packages to install: 379
+       Create boot environment:  No
+Create backup boot environment:  No
+            Services to change:   4
+
+DOWNLOAD                                  PKGS       FILES    XFER (MB)
+Completed                              379/379 38943/38943  249.4/249.4
+
+PHASE                                        ACTIONS
+Install Phase                            56633/56633
+
+PHASE                                          ITEMS
+Package State Update Phase                   379/379
+Image State Update Phase                         2/2
+
+        Note: Man pages can be obtained by installing pkg:/system/manual
+ Postinstall: Copying SMF seed repository ... done.
+        Done: Installation completed in 200.260 seconds.
+
+  Next Steps: Boot the zone, then log into the zone console (zlogin -C)
+              to complete the configuration process.
+</code></pre>
+
+<p>Boot the zone and log in using <code>zlogin</code> (to exit the zone just type <code>exit</code>):</p>
+
+<pre><code class="bash">zoneadm -z example boot
+zlogin example
+[Connected to zone 'example' pts/2]
+OmniOS 5.11     006     June 2014
+root@example:~#
+</code></pre>
+
+<p>List available network interfaces:</p>
+
+<pre><code class="bash">dladm show-vnic
+LINK         OVER         SPEED  MACADDRESS        MACADDRTYPE         VID
+dmzexample0  ?            1000   2:8:20:8:51:e9    random              40
+</code></pre>
+
+<p>Create the IP interface and setup static networking:</p>
+
+<pre><code class="bash">ipadm create-if dmzexample0
+ipadm create-addr -T static -a 192.168.0.10/24 dmzexample0/v4static
+# for DHCP use
+# ipadm create-addr -T dhcp dmzexample0/v4
+</code></pre>
+
+<p>Setup routing (if using static networking):</p>
+
+<pre><code class="bash">route -p add default 192.168.0.1
+# Additional routes can be set up using
+# route -p add 10.0.0.0/24 192.168.0.2
+</code></pre>
+
+<p>Setup name resolution by adding nameservers to <code>/etc/resolv.conf</code>:</p>
+
+<pre><code class="bash">nameserver 192.168.0.1
+</code></pre>
+
+<p>Finally configure NSS to use DNS:</p>
+
+<pre><code class="bash">cp /etc/nsswitch.conf{,.bak}
+cp /etc/nsswitch.{dns,conf}
+</code></pre>
+
+<p>Verify internet access:</p>
+
+<pre><code class="bash">ping google.com
+google.com is alive
+</code></pre>
+
+<p>After having successfully installed the zone you might want to take a look at:</p>
+
+<ul>
+<li><a href="https://blog.wbnet.dk/2014/10/10/install-packages-from-joyent-slash-smartos-repository-in-omnios/">Install Packages From Joyent/SmartOS Repository</a></li>
+<li><a href="http://blog.wbnet.dk/2014/10/10/run-a-qemu-slash-kvm-virtual-machine-in-an-omnios-zone/">Run a QEMU/KVM Virtual Machine in an OmniOS Zone</a></li>
+</ul>
+
+
+<p>To <strong>clone</strong> an existing zone start by shutting down the zone (from the global zone):</p>
+
+<pre><code class="bash">zoneadm -z example halt
+</code></pre>
+
+<p>Copy the configuration file (<code>cp example.conf exampleclone.conf</code>) and modify as appropriate (at least <code>zonepath</code> and <code>physical</code> network):</p>
+
+<pre><code class="bash">create -b
+set zonepath=/tank/zones/exampleconf
+set ip-type=exclusive
+set autoboot=true
+add net
+set physical=dmzexampleconf0
+end
+commit
+</code></pre>
+
+<p>Remember to create any new network interfaces:</p>
+
+<pre><code class="bash">dladm create-vnic dmzexampleclone0 -l aggr0 -v 40
+</code></pre>
+
+<p>Import the new configuration as a new zone:</p>
+
+<pre><code class="bash">zonecfg -z exampleclone -f exampleclone.conf
+</code></pre>
+
+<p>And then clone the existing <code>example</code> zone using <code>zoneadm</code> and boot it:</p>
+
+<pre><code class="bash">zoneadm -z exampleclone clone example
+zoneadm -z exampleclone boot
+</code></pre>
+
+<p>Next, login and modify network settings (see above).</p>
+
+<p>Finally, to delete a zone start by shutting it down:</p>
+
+<pre><code class="bash">zoneadm -z exampleclone halt
+</code></pre>
+
+<p>Then <code>uninstall</code> using <code>zoneadm</code>:</p>
+
+<pre><code class="bash">zoneadm -z exampleclone uninstall -F
+</code></pre>
+
+<p>And delete the configuration using <code>zonecfg</code>:</p>
+
+<pre><code class="bash">zonecfg -z exampleclone delete -F
+</code></pre>
+
+<p>Make sure the zone no longer appears in the list of zones:</p>
+
+<pre><code class="bash">zoneadm list -iv
+</code></pre>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Solaris/OmniOS Tape Drive and Autochanger Device Names]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/09/solaris-slash-omnios-tape-drive-and-autochanger-device-names/"/>
+    <updated>2014-10-09T14:28:58+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/09/solaris-slash-omnios-tape-drive-and-autochanger-device-names</id>
+    <content type="html"><![CDATA[<p>In Solaris (and thus OmniOS) tape drives are mapped to /dev/rmt (raw media tape) using the following <a href="http://docs.oracle.com/cd/E23824_01/html/821-1459/bkuptapedevice-27909.html#scrolltoc">device naming scheme</a>:</p>
+
+<pre><code class="bash">/dev/rmt/XAbn
+</code></pre>
+
+<ul>
+<li>X is the drive number (0-n)</li>
+<li>A is the optional density (c for compressed, u for ultra)</li>
+<li>b for BSD compatible behaviour (needed for <a href="http://blog.bacula.org/">bacula</a>)</li>
+<li>n is an optional no-rewind (n) [omit for rewind]</li>
+</ul>
+
+
+<p>So, using compression and BSD compatible behaviour with no-rewind, the two LTO3 tape drives in my <a href="http://www.dell.com/us/business/p/powervault-ml6010/pd">PowerVault ML6010</a> are at:</p>
+
+<pre><code class="bash">/dev/rmt/0cbn
+/dev/rmt/1cbn
+</code></pre>
+
+<p>The autochanger is mapped to:</p>
+
+<pre><code class="bash">/dev/scsi/changer/cXX
+</code></pre>
+
+<p>Where cXX is the SCSI controller number.</p>
+]]></content>
+  </entry>
+  
+</feed>

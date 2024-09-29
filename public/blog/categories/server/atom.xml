@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Server | Balling's Bits]]></title>
+  <link href="https://blog.wbnet.dk/blog/categories/server/atom.xml" rel="self"/>
+  <link href="https://blog.wbnet.dk/"/>
+  <updated>2015-06-01T11:34:54+02:00</updated>
+  <id>https://blog.wbnet.dk/</id>
+  <author>
+    <name><![CDATA[Kristoffer Winther Balling]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[SuperMicro X9DR7-LN4F SATA Issues When Using On-board LSI SAS2308 Controller]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/07/supermicro-x9dr7-ln4f-sata-issues-when-using-on-board-lsi-sas2308-controller/"/>
+    <updated>2014-10-07T16:31:03+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/07/supermicro-x9dr7-ln4f-sata-issues-when-using-on-board-lsi-sas2308-controller</id>
+    <content type="html"><![CDATA[<p>One of the reasons I bought a <a href="http://www.supermicro.com/products/motherboard/xeon/c600/X9DR7-LN4F.cfm">SuperMicro X9DR7-LN4F</a> for my <a href="https://blog.wbnet.dk/2014/10/06/all-in-one-server-hardware/">All-in-One server</a> was the ability to use a total of 18 drives with the on-board controllers:</p>
+
+<ul>
+<li>8 disks on the LSI SAS2308 (SAS2)</li>
+<li>6 drives on the Intel C602 (Port 0-5, two SATA3 and four SATA2)</li>
+<li>4 drives on the SCU (SATA2).</li>
+</ul>
+
+
+<p>Unfortunately this turned out not to work (running BIOS v3.0a from 10-Sep-2013, latest available at the time of writing). Thomas Krenn <a href="http://www.thomas-krenn.com/en/wiki/Supermicro_X9DR7-LN4F_Motherboard">mentions issues</a> with simultaneous use of the 4 SCU SATA2 ports and the SAS2308 controller. In my experience <strong>only</strong> the 2 SATA3 ports can be used when the SAS-2308 is operational rendering this this motherboard capable of supporting only 10 disks rather than 18. <strong>I would have liked to have that information before the purchase!</strong></p>
+
+<p>I ended up buying an <a href="http://www.lsi.com/products/host-bus-adapters/pages/lsi-sas-9201-16i.aspx">LSI SAS 9201-16i HBA</a> ahead of time.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Preparing Samsung HD204UI as 4K Sector Drive for Use in ZFS Zpool]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/07/preparing-samsung-hd204ui-as-4k-sector-drive-for-use-in-zfs-zpool/"/>
+    <updated>2014-10-07T16:22:20+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/07/preparing-samsung-hd204ui-as-4k-sector-drive-for-use-in-zfs-zpool</id>
+    <content type="html"><![CDATA[<p>I had six <a href="http://www.storagereview.com/samsung_spinpoint_f4eg_review_hd204ui">Samsung HD204UI</a> drives from a previous NAS that I wanted to use in a zpool (two vdevs each consisting of a
+ <a href="http://constantin.glez.de/blog/2010/01/home-server-raid-greed-and-why-mirroring-still-best">three-way mirror</a>). The HD204UI drives <em>are</em> advanced format drives with 4k sectors, but they report a 512 byte sector size to the OS. This can be overcome in zfs by forcing 4k size in <code>sd.conf</code> and using <code>ashift=12</code> when creating the zpool.</p>
+
+<p>Before creating a zpool the drives must be prepared so that zfs and disk sectors are aligned.
+The following approach is gleaned from the <a href="http://wiki.illumos.org/display/illumos/ZFS+and+Advanced+Format+disks">illumos wiki entry on the subject by George Wilson</a>.</p>
+
+<p>To find the device names of all disks use the <code>format</code> command (use <code>Ctrl-C</code> to exit):</p>
+
+<pre><code class="bash">root@srv01:~# format
+Searching for disks...done
+...
+AVAILABLE DISK SELECTIONS:
+...
+       2. c3t50024E900496C9E7d0 &lt;ATA-SAMSUNG HD204UI-0001-1.82TB&gt;
+          /scsi_vhci/disk@g50024e900496c9e7
+...
+Specify disk (enter its number):
+</code></pre>
+
+<p>To use 4K sectors the partition table must be changed to a GUID partition table (GPT). Use the <code>mklabel gpt</code> command to change partition table (this will destroy all data on the disk):</p>
+
+<pre><code class="bash">parted /dev/rdsk/c3t50024E900496C9E7d0 mklabel gpt
+</code></pre>
+
+<p>To align sectors create a partition which starts at sector 256 (256 sectors of 512 bytes is 131072 bytes or 32 4K sectors, i.e. aligned). The size of the partition should be total number of disk sectors minus 16640 sectors (256 sectors for start + 16384 sectors for down-sizing to allow new disks of identical size to have slightly different geometry and still be used as replacement for the drive we are partitioning). 3907029168 sectors minus 16640 sectors equals 3907012528 sectors:</p>
+
+<pre><code class="bash">parted /dev/rdsk/c3t5000CCA23DC00778d0p0 uni s mkpart zfs solaris 256 3907012528
+</code></pre>
+
+<p>The disk is now ready to use in a zpool.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Why OmniOS for All-in-One Server]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/07/why-omnios-for-all-in-one-server/"/>
+    <updated>2014-10-07T11:45:33+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/07/why-omnios-for-all-in-one-server</id>
+    <content type="html"><![CDATA[<p>Moving from a Synology NAS storage solution to a white box All-in-One server, I wanted an operating system that had mature support for ZFS <a href="http://en.wikipedia.org/wiki/ZFS">Sun Microsystem&rsquo;s Zetta File System</a>, which narrowed choices down to <a href="http://en.wikipedia.org/wiki/OpenSolaris">OpenSolaris</a> derivatives (<a href="http://openindiana.org/">OpenIndiana</a>, <a href="http://wiki.illumos.org/display/illumos/About+illumos">Illumos</a>, <a href="http://omnios.omniti.com/">OmniOS</a>) or <a href="https://www.freebsd.org/">FreeBSD</a> (though the <a href="http://zfsonlinux.org/">ZFS-on-Linux</a> port is getting there).</p>
+
+<p>I have 15 years experience with Linux, but am an absolute noob on Solaris. I knew I wanted an easy-to-use web-interface for administering the storage part of the server, and a lot of people are really happy with <a href="http://www.napp-it.org/">napp-it</a> by Günther Alka (AKA gea), and the preferred OS for napp-it was OmniOS. The fact that OmniOS has a JeOS (just enough OS) approach and that <a href="http://omniti.com/is/theo-schlossnagle">Theo Schlossnagle</a> (founder of OmniTI) comes across as someone who knows his sh*t made the choice easy.</p>
+
+<p>The main features of OmniOS are:</p>
+
+<ul>
+<li><a href="http://en.wikipedia.org/wiki/ZFS">ZFS</a>
+
+<ul>
+<li>Unmatched data integrity (checksums protect against <a href="http://en.wikipedia.org/wiki/Data_degradation#Decay_of_storage_media">data degradation</a>)</li>
+<li>Very cheap snapshots (due to copy-on-write nature of ZFS)</li>
+<li>Integrated NFS and SMB sharing</li>
+<li>Support for raw volumes (to host virtual machines)</li>
+<li>Consistent and easy backup (via snapshots)</li>
+<li>Storage scalability matching my needs (<a href="http://nex7.blogspot.dk/2013/03/readme1st.html">3-way mirror VDEVs</a>)</li>
+</ul>
+</li>
+<li><a href="http://en.wikipedia.org/wiki/OpenSolaris_Network_Virtualization_and_Resource_Control">Crossbow</a> (network virtualization)</li>
+<li><a href="http://en.wikipedia.org/wiki/Solaris_Containers">Zones</a>
+
+<ul>
+<li>Secure isolation of services with zero overhead</li>
+</ul>
+</li>
+<li><a href="http://wiki.qemu.org/Main_Page">QEMU</a>/KVM support
+
+<ul>
+<li>Virtual Machines</li>
+</ul>
+</li>
+</ul>
+
+
+<p>I went with r151006 which was the Long-Tail Support (LTS) at the time (April 2014). With respect to drivers there were no issues with the <a href="https://blog.wbnet.dk/2014/10/06/all-in-one-server-hardware/">hardware</a> I had, but driver support was a bit behind something like e.g. Linux (e.g. r151006 did not have support for LSI SAS3 HBAs).</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[How to Apply CPU Thermal Paste]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/07/how-to-apply-cpu-thermal-paste/"/>
+    <updated>2014-10-07T09:04:01+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/07/how-to-apply-cpu-thermal-paste</id>
+    <content type="html"><![CDATA[<p>Considering the cost of good thermal paste and the tediousness of properly removing/re-applying it, I wanted to get this right the first time when I build my new <a href="https://blog.wbnet.dk/2014/10/06/all-in-one-server-hardware/">server</a>. The heat sink I used came with thermal paste pre-applied, but since the motherboard was dead-on-arrival, I needed to re-apply it when putting the CPU in the replacement motherboard.</p>
+
+<p>Searching the internet led to this <a href="http://www.pugetsystems.com/labs/articles/Thermal-Paste-Application-Techniques-170/">test of thermal paste application methods</a> by Puget Systems. Their conclusion was that a simple X-shaped application to the CPU gives the best performance (fewest air-bubbles, lowest temperature). This turns out to be very similar to <a href="http://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/hw/blade-servers/B200M3.html">Cisco&rsquo;s recommendation for thermal paste</a>.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[All-in-One Server Hardware]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/06/all-in-one-server-hardware/"/>
+    <updated>2014-10-06T09:42:50+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/06/all-in-one-server-hardware</id>
+    <content type="html"><![CDATA[<p>I decided to build a brand new white box All-in-One server after being a happy <a href="https://www.synology.com">Synology</a> (DS1511+) user for a couple of years. I needed more drives, the ability to run virtual machines, integration of my perimeter firewall on the server, and transition from RAID5 to a more secure file system (ZFS).</p>
+
+<p>I build the server using these components:</p>
+
+<ul>
+<li>Chassis: <a href="http://www.xcase.co.uk/rackmount-cases/4u-rackmount-server-cases/x-case-rm-424-pro-24-bay-hotswap-6gb-sgpio-backplane-single-or-redundant-psu-s-395-00-x-case.html">X-Case RM424</a> (improved Norco 424, mine had 12Gbps back-plane and no SGPIO)</li>
+<li>PSU: <a href="http://www.seasonic.com/product/pc_atx.jsp">Seasonic SS-750HT Active 80+</a></li>
+<li>Motherboard: <a href="http://www.supermicro.com/products/motherboard/xeon/c600/X9DR7-LN4F.cfm">SuperMicro X9DR7-LN4F</a> (dual socket)</li>
+<li>CPU: <a href="http://ark.intel.com/products/75789/Intel-Xeon-Processor-E5-2620-v2-15M-Cache-2_10-GHz">Intel E5-2620v2 </a> (2.1 GHz, 2.6 GHz Turbo, 6 cores)</li>
+<li>CPU Heat sink: <a href="http://www.supermicro.com/support/resources/Thermal/">SuperMicro SNK-P0047PS</a></li>
+<li>CPU Thermal Paste: <a href="http://www.arctic.ac/eu_en/mx-2.html">Arctic Cooling MX-2</a></li>
+<li>Memory: 4 x <a href="http://www.supermicro.com/support/resources/memory/display.cfm?mspd=1.6&amp;mtyp=47&amp;id=9CC7AB76CFB05575445A34CE0075C8D5&amp;prid=82657&amp;type=DDR3%201.35V&amp;ecc=1&amp;reg=1&amp;fbd=0">Samsung M393B1K70DH0-YK0</a><br/>
+4x8 GB registered ECC 1600 MHz DDR3, 1.35v, dual rank</li>
+<li>Host Bus Adapters:
+
+<ul>
+<li><a href="http://www.lsi.com/products/host-bus-adapters/pages/lsi-sas-9201-16i.aspx">LSI SAS 9201-16i (16 SAS2 ports)</a></li>
+<li><a href="http://ark.intel.com/products/59062/Intel-Ethernet-Server-Adapter-I350-T2">Intel Ethernet Server Adapter I350-T2</a></li>
+<li><a href="http://www.cnet.com/products/lsi-lsi20320ie-storage-controller-ultra320-scsi-pcie-x4-series/specs/">LSI 20320IE</a> (PCI Express Ultra320 SCSI with external LVD)</li>
+</ul>
+</li>
+<li>Drives:
+
+<ul>
+<li>3 x 4 TB <a href="http://www.hgst.com/tech/techlib.nsf/techdocs/3c330019e6ed04a48825797700626f0d/$file/ds7k4000_ds.pdf">HGST Deskstar 7K4000</a> (HDS724040ALE640, 4K sector size)</li>
+<li>6 x 2 TB <a href="http://www.storagereview.com/samsung_spinpoint_f4eg_review_hd204ui">Samsung HD204UI</a> (left over from Synology NAS, 4K sector size)</li>
+<li>3 x 256 GB <a href="http://www.samsung.com/us/support/owners/product/MZ-7PD256BW">Samsung 840 Pro</a> (over-provisioned to 174 GB)</li>
+<li>1 x 100 GB <a href="http://www.intel.com/content/www/us/en/solid-state-drives/solid-state-drives-dc-s3700-series.html">Intel DC S3700</a> (as ZFS intent log, over-provisioned  to 8 GB)</li>
+<li>2 x 80 GB <a href="http://ark.intel.com/products/56601/Intel-SSD-X25-M-Series-80GB-2_5in-SATA-3Gbs-34nm-MLC">Intel X25-M SSD</a> (ZFS rpool mirror, over-provisioned by to 40 GB)</li>
+</ul>
+</li>
+</ul>
+
+
+<p>Unfortunately, <a href="http://www.xcase.co.uk/">X-Case</a> initially sent me the wrong chassis (RM424s, a short version which did not accommodate the motherboard). Also the motherboard (from <a href="https://www.jacob-computer.de/">Jacob Electronik</a>) was dead-on-arrival. After having quickly resolved those issues, the server has been running smooth ever since (6 months).</p>
+]]></content>
+  </entry>
+  
+</feed>

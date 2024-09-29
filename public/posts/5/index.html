@@ -1,0 +1,479 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Balling&#8217;s Bits</title>
+  <meta name="author" content="Kristoffer Winther Balling">
+
+  
+  <meta name="description" content="Moving from a Synology NAS storage solution to a white box All-in-One server, I wanted an operating system that had mature support for ZFS Sun &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="https://blog.wbnet.dk/posts/5">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Balling's Bits" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<!-- Add fancyBox -->
+<link rel="stylesheet" href="/stylesheets/jquery.fancybox.css" type="text/css" media="screen" />
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Balling&#8217;s Bits</a></h1>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.wbnet.dk" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/categories/tech">Tech Stuff</a></li>
+  <li><a href="/blog/categories/r">R</a></li>
+  <li><a href="/blog/categories/photo-of-the-day">Photos</a></li>
+  <li><a href="/blog/categories/opskrifter">Opskrifter</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div class="blog-index">
+  
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/2014/10/07/why-omnios-for-all-in-one-server/">Why OmniOS for All-in-One Server</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-10-07T11:45:33+02:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>7</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>11:45 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Moving from a Synology NAS storage solution to a white box All-in-One server, I wanted an operating system that had mature support for ZFS <a href="http://en.wikipedia.org/wiki/ZFS">Sun Microsystem&rsquo;s Zetta File System</a>, which narrowed choices down to <a href="http://en.wikipedia.org/wiki/OpenSolaris">OpenSolaris</a> derivatives (<a href="http://openindiana.org/">OpenIndiana</a>, <a href="http://wiki.illumos.org/display/illumos/About+illumos">Illumos</a>, <a href="http://omnios.omniti.com/">OmniOS</a>) or <a href="https://www.freebsd.org/">FreeBSD</a> (though the <a href="http://zfsonlinux.org/">ZFS-on-Linux</a> port is getting there).</p>
+
+<p>I have 15 years experience with Linux, but am an absolute noob on Solaris. I knew I wanted an easy-to-use web-interface for administering the storage part of the server, and a lot of people are really happy with <a href="http://www.napp-it.org/">napp-it</a> by Günther Alka (AKA gea), and the preferred OS for napp-it was OmniOS. The fact that OmniOS has a JeOS (just enough OS) approach and that <a href="http://omniti.com/is/theo-schlossnagle">Theo Schlossnagle</a> (founder of OmniTI) comes across as someone who knows his sh*t made the choice easy.</p>
+
+<p>The main features of OmniOS are:</p>
+
+<ul>
+<li><a href="http://en.wikipedia.org/wiki/ZFS">ZFS</a>
+
+<ul>
+<li>Unmatched data integrity (checksums protect against <a href="http://en.wikipedia.org/wiki/Data_degradation#Decay_of_storage_media">data degradation</a>)</li>
+<li>Very cheap snapshots (due to copy-on-write nature of ZFS)</li>
+<li>Integrated NFS and SMB sharing</li>
+<li>Support for raw volumes (to host virtual machines)</li>
+<li>Consistent and easy backup (via snapshots)</li>
+<li>Storage scalability matching my needs (<a href="http://nex7.blogspot.dk/2013/03/readme1st.html">3-way mirror VDEVs</a>)</li>
+</ul>
+</li>
+<li><a href="http://en.wikipedia.org/wiki/OpenSolaris_Network_Virtualization_and_Resource_Control">Crossbow</a> (network virtualization)</li>
+<li><a href="http://en.wikipedia.org/wiki/Solaris_Containers">Zones</a>
+
+<ul>
+<li>Secure isolation of services with zero overhead</li>
+</ul>
+</li>
+<li><a href="http://wiki.qemu.org/Main_Page">QEMU</a>/KVM support
+
+<ul>
+<li>Virtual Machines</li>
+</ul>
+</li>
+</ul>
+
+
+<p>I went with r151006 which was the Long-Tail Support (LTS) at the time (April 2014). With respect to drivers there were no issues with the <a href="https://blog.wbnet.dk/2014/10/06/all-in-one-server-hardware/">hardware</a> I had, but driver support was a bit behind something like e.g. Linux (e.g. r151006 did not have support for LSI SAS3 HBAs).</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/2014/10/07/how-to-apply-cpu-thermal-paste/">How to Apply CPU Thermal Paste</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-10-07T09:04:01+02:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>7</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>9:04 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Considering the cost of good thermal paste and the tediousness of properly removing/re-applying it, I wanted to get this right the first time when I build my new <a href="https://blog.wbnet.dk/2014/10/06/all-in-one-server-hardware/">server</a>. The heat sink I used came with thermal paste pre-applied, but since the motherboard was dead-on-arrival, I needed to re-apply it when putting the CPU in the replacement motherboard.</p>
+
+<p>Searching the internet led to this <a href="http://www.pugetsystems.com/labs/articles/Thermal-Paste-Application-Techniques-170/">test of thermal paste application methods</a> by Puget Systems. Their conclusion was that a simple X-shaped application to the CPU gives the best performance (fewest air-bubbles, lowest temperature). This turns out to be very similar to <a href="http://www.cisco.com/c/en/us/td/docs/unified_computing/ucs/hw/blade-servers/B200M3.html">Cisco&rsquo;s recommendation for thermal paste</a>.</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/2014/10/06/all-in-one-server-hardware/">All-in-One Server Hardware</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-10-06T09:42:50+02:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>6</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>9:42 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>I decided to build a brand new white box All-in-One server after being a happy <a href="https://www.synology.com">Synology</a> (DS1511+) user for a couple of years. I needed more drives, the ability to run virtual machines, integration of my perimeter firewall on the server, and transition from RAID5 to a more secure file system (ZFS).</p>
+
+<p>I build the server using these components:</p>
+
+<ul>
+<li>Chassis: <a href="http://www.xcase.co.uk/rackmount-cases/4u-rackmount-server-cases/x-case-rm-424-pro-24-bay-hotswap-6gb-sgpio-backplane-single-or-redundant-psu-s-395-00-x-case.html">X-Case RM424</a> (improved Norco 424, mine had 12Gbps back-plane and no SGPIO)</li>
+<li>PSU: <a href="http://www.seasonic.com/product/pc_atx.jsp">Seasonic SS-750HT Active 80+</a></li>
+<li>Motherboard: <a href="http://www.supermicro.com/products/motherboard/xeon/c600/X9DR7-LN4F.cfm">SuperMicro X9DR7-LN4F</a> (dual socket)</li>
+<li>CPU: <a href="http://ark.intel.com/products/75789/Intel-Xeon-Processor-E5-2620-v2-15M-Cache-2_10-GHz">Intel E5-2620v2 </a> (2.1 GHz, 2.6 GHz Turbo, 6 cores)</li>
+<li>CPU Heat sink: <a href="http://www.supermicro.com/support/resources/Thermal/">SuperMicro SNK-P0047PS</a></li>
+<li>CPU Thermal Paste: <a href="http://www.arctic.ac/eu_en/mx-2.html">Arctic Cooling MX-2</a></li>
+<li>Memory: 4 x <a href="http://www.supermicro.com/support/resources/memory/display.cfm?mspd=1.6&amp;mtyp=47&amp;id=9CC7AB76CFB05575445A34CE0075C8D5&amp;prid=82657&amp;type=DDR3%201.35V&amp;ecc=1&amp;reg=1&amp;fbd=0">Samsung M393B1K70DH0-YK0</a><br/>
+4x8 GB registered ECC 1600 MHz DDR3, 1.35v, dual rank</li>
+<li>Host Bus Adapters:
+
+<ul>
+<li><a href="http://www.lsi.com/products/host-bus-adapters/pages/lsi-sas-9201-16i.aspx">LSI SAS 9201-16i (16 SAS2 ports)</a></li>
+<li><a href="http://ark.intel.com/products/59062/Intel-Ethernet-Server-Adapter-I350-T2">Intel Ethernet Server Adapter I350-T2</a></li>
+<li><a href="http://www.cnet.com/products/lsi-lsi20320ie-storage-controller-ultra320-scsi-pcie-x4-series/specs/">LSI 20320IE</a> (PCI Express Ultra320 SCSI with external LVD)</li>
+</ul>
+</li>
+<li>Drives:
+
+<ul>
+<li>3 x 4 TB <a href="http://www.hgst.com/tech/techlib.nsf/techdocs/3c330019e6ed04a48825797700626f0d/$file/ds7k4000_ds.pdf">HGST Deskstar 7K4000</a> (HDS724040ALE640, 4K sector size)</li>
+<li>6 x 2 TB <a href="http://www.storagereview.com/samsung_spinpoint_f4eg_review_hd204ui">Samsung HD204UI</a> (left over from Synology NAS, 4K sector size)</li>
+<li>3 x 256 GB <a href="http://www.samsung.com/us/support/owners/product/MZ-7PD256BW">Samsung 840 Pro</a> (over-provisioned to 174 GB)</li>
+<li>1 x 100 GB <a href="http://www.intel.com/content/www/us/en/solid-state-drives/solid-state-drives-dc-s3700-series.html">Intel DC S3700</a> (as ZFS intent log, over-provisioned  to 8 GB)</li>
+<li>2 x 80 GB <a href="http://ark.intel.com/products/56601/Intel-SSD-X25-M-Series-80GB-2_5in-SATA-3Gbs-34nm-MLC">Intel X25-M SSD</a> (ZFS rpool mirror, over-provisioned by to 40 GB)</li>
+</ul>
+</li>
+</ul>
+
+
+<p>Unfortunately, <a href="http://www.xcase.co.uk/">X-Case</a> initially sent me the wrong chassis (RM424s, a short version which did not accommodate the motherboard). Also the motherboard (from <a href="https://www.jacob-computer.de/">Jacob Electronik</a>) was dead-on-arrival. After having quickly resolved those issues, the server has been running smooth ever since (6 months).</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/2014/05/18/pandekager/">Pandekager</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-05-18T09:15:46+02:00'><span class='date'><span class='date-month'>May</span> <span class='date-day'>18</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>9:15 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Her opskriften på pandekager.</p>
+
+<p><strong>Ingredienser (til ca. 15 pandekager á 20 cm i diameter):</strong></p>
+
+<ul>
+<li>230 g hvedemel</li>
+<li>3 tsk. sukker</li>
+<li>½ tsk. kardemomme</li>
+<li>2 æg</li>
+<li>4.5 dL mælk</li>
+<li>30 g smør (til stegning)</li>
+</ul>
+
+
+<p><strong>Fremgangsmåde:</strong> Rør mel, sukker og kardemomme sammen. Tilsæt æg og lidt mælk (1 dL) og rør dejen godt sammen. Tilsæt resten af mælken, rør sammen og bag på pande (ca 1 minut på hver side på stort blus sat på 6 til 7).</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/2014/02/22/rugbroed/">Rugbrød</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-02-22T08:11:21+01:00'><span class='date'><span class='date-month'>Feb</span> <span class='date-day'>22</span><span class='date-suffix'>nd</span>, <span class='date-year'>2014</span></span> <span class='time'>8:11 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Her opskriften på Jeffrey Hamelmans fuldkornsrugbrød med hørfrø (læs rugbrød) fra bogen <a href="http://www.amazon.com/Bread-Bakers-Book-Techniques-Recipes/dp/1118132718">Jeffrey Hamelman: Bread</a>.</p>
+
+<p><strong>Ingredienser (til 2 rugbrød):</strong></p>
+
+<ul>
+<li><em>Surdej:</em>
+
+<ul>
+<li>900 g fuldkornsrugmel</li>
+<li>900 g vand</li>
+<li>40 g surdejskultur</li>
+</ul>
+</li>
+<li><em>Rugkerner:</em>
+
+<ul>
+<li>720 g skårne rugkerner</li>
+<li>720 g vand (kogende hvis der anvendes knækkede rugkerner)</li>
+</ul>
+</li>
+<li><em>Hørfrø:</em>
+
+<ul>
+<li>120 g hørfrø</li>
+<li>300 g vand</li>
+</ul>
+</li>
+<li><em>Dej (til 1 rugbrød da min KitchenAid ikke kan klare mere ad gangen):</em>
+
+<ul>
+<li>870 g surdej</li>
+<li>700 g udblødte rugkerner</li>
+<li>210 g udblødte hørfrø</li>
+<li>22 g salt</li>
+<li>20 g vand</li>
+<li>20 g gær</li>
+<li>340 g rugmel</li>
+<li>1 rugbrødsform + lidt olie til smøring</li>
+</ul>
+</li>
+</ul>
+
+
+<p><strong>Fremgangsmåde:</strong> Rør surdejskulturen ud i vand, tilsæt rugmel og rør sammen. Stil til hævning et lunt sted (21-22 grader) i cirka 14 til 16 timer. Surdejen skal være hævet og lugte surt.</p>
+
+<p>Et par timer før dejen laves stilles rugkerner og hørfrø i blød i koldt vand (hvis der anvendes knækkede rugkerner, så brug kogende vand).</p>
+
+<p>Dejen samles ved at blande surdej, udblødte rugkerner og hørfrø, salt, vand og gær i en rørmaskine. Til sidst tilsættes rugmelet og dejen røres godt sammen.</p>
+
+<p>Dejen fordeles i formen og sættes til hævning et lunt sted (28-30 grader) i 50-60 minutter.</p>
+
+<p>Rugbrødene bages 15 minutter ved 245 grader, derefter 1 time ved 195 grader hvorefter de tages ud af formen og bages yderligere 15 minutter ved 195 grader. Ialt halvanden time i ovnen.</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  <div class="pagination">
+    
+      <a class="prev" href="/posts/6">&larr; Older</a>
+    
+    <a href="/archives">Blog Archives</a>
+    
+    <a class="next" href="/posts/4">Newer &rarr;</a>
+    
+  </div>
+</div>
+<aside class="sidebar">
+  
+    <section>
+  <h1>Kristoffer W. Balling</h1>
+  <p>Geek. Father-of-two. Principal Scientist.</p>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/2015/05/31/fully-encrypted-hetzner-vx6-vserver-with-ubuntu-14-dot-04-lts/">LUKS Encrypted Hetzner VX6 vServer With Ubuntu 14.04 LTS</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/25/setting-up-nemid-on-hardware-on-ubuntu-14-dot-04-lts/">Setting Up NEMID on Hardware on Ubuntu 14.04 LTS</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/15/dell-inspiron-1720-will-not-boot-caps-lock-blinking/">Dell Inspiron 1720 Will Not Boot - CAPS Lock Blinking</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04/">Installing R Packages RCurl and XML on Ubuntu 14.04</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/10/22/setting-up-nginx-for-ssl-slash-tls/">Setting Up Nginx for SSL/TLS</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/kwballing">@kwballing</a> on GitHub
+  
+  <script type="text/javascript">
+    $(document).ready(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'kwballing',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+</aside>
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/80x15.png" /></a> <span xmlns:dct="https://purl.org/dc/terms/" property="dct:title">Balling&#8217;s Bits</span> by <a xmlns:cc="https://creativecommons.org/ns#" href="https://blog.wbnet.dk" property="cc:attributionName" rel="cc:attributionURL">Kristoffer Winther Balling</a> is licensed under a <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.<br />
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'ballingsbits';
+      
+        
+        var disqus_script = 'count.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+<!-- Add fancyBox -->
+<script type="text/javascript" src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript" src="/javascripts/wbnet.js"></script>
+
+
+
+</body>
+</html>

@@ -1,0 +1,808 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Tech | Balling's Bits]]></title>
+  <link href="https://blog.wbnet.dk/blog/categories/tech/atom.xml" rel="self"/>
+  <link href="https://blog.wbnet.dk/"/>
+  <updated>2015-06-01T11:34:54+02:00</updated>
+  <id>https://blog.wbnet.dk/</id>
+  <author>
+    <name><![CDATA[Kristoffer Winther Balling]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[LUKS Encrypted Hetzner VX6 vServer With Ubuntu 14.04 LTS]]></title>
+    <link href="https://blog.wbnet.dk/2015/05/31/fully-encrypted-hetzner-vx6-vserver-with-ubuntu-14-dot-04-lts/"/>
+    <updated>2015-05-31T09:05:54+02:00</updated>
+    <id>https://blog.wbnet.dk/2015/05/31/fully-encrypted-hetzner-vx6-vserver-with-ubuntu-14-dot-04-lts</id>
+    <content type="html"><![CDATA[<p>This is a guide to installing Ubuntu 14.04 LTS on an <a href="https://www.hetzner.de/">Hetzner</a> VX6 vServer using LUKS encryption of the root partition. The guide is inspiried by blog posts of <a href="https://www.dont-panic.cc/capi/2012/10/24/fully-encrypted-vserver-with-ubuntu-12-04/">Martin Carpella</a> and <a href="https://kiza.eu/journal/entry/697">Oliver Feiler</a>. On reboot you will be able to log in via ssh to provide the password for the LUKS partition (using dropbear and busybox).</p>
+
+<p>As pointed out by Martin Carpella it may sound stupid to encrypt the disk of a virtual machine as the private key can be pulled from memory by the host (i.e. Hetzner). However, encrypting all data on the disk protects it in case you cancel the vServer, or the vServer gets moved to a new host, or a failed disk is returned to the manufacturer or discarded etc. So it is more a matter of protecting the data if the VM is cancelled/offline rather than online. If you do not want Hetzner to be able to pull the private key, go for something other than a virtual machine (e.g. a root server).</p>
+
+<p>Anyway, here we go!</p>
+
+<p>When signing up for the vServer select the Hetzner Ubuntu 14.04 LTS 64-bit minimal-install image. Once the server is setup log in via SSH and make backups of these files:</p>
+
+<ul>
+<li><code>/etc/hostname</code></li>
+<li><code>/etc/hosts</code></li>
+<li><code>/etc/resolv.conf</code></li>
+<li><code>/etc/network/interfaces</code></li>
+</ul>
+
+
+<p>Log into the Hetzner robot interface and select 64-bit Linux rescue system, take note of the password for rescue system ssh login displayed on the page. Reboot your vServer in rescue mode and log in.</p>
+
+<p>Setup disk partitions using <code>fdisk</code>:</p>
+
+<pre><code class="bash">fdisk /dev/vda
+</code></pre>
+
+<p>Create a boot partition of 256 MB (<code>/dev/vda1</code>) and a root partition of the remaining free space (<code>/dev/vda2</code>). Mark the boot partition as bootable. My partition table looks like this:</p>
+
+<pre><code class="bash">Disk /dev/vda: 26.8 GB, 26843545600 bytes
+255 heads, 63 sectors/track, 3263 cylinders, total 52428800 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk identifier: 0x00044f0a
+
+   Device Boot      Start         End      Blocks   Id  System
+/dev/vda1   *        2048      526335      262144   83  Linux
+/dev/vda2          526336    52428799    25951232   83  Linux
+</code></pre>
+
+<p>Create the encrypted partition (enter passphrase when prompted):</p>
+
+<pre><code class="bash">cryptsetup --cipher aes-xts-plain64 -s 512 --iter-time 5000 luksFormat /dev/vda2
+</code></pre>
+
+<p>Decrypt the partition and create a volume group and two logical volumes (root and swap):</p>
+
+<pre><code class="bash">cryptsetup luksOpen /dev/vda2 vda2_decrypt
+vgcreate vg-encrypted /dev/mapper/vda2_decrypt
+lvcreate -L 2G -n swap vg-encrypted
+lvcreate -L 22G -n root vg-encrypted
+</code></pre>
+
+<p>Create file systems:</p>
+
+<pre><code class="bash">mkfs.ext2 /dev/vda1
+mkswap /dev/vg-encrypted/swap
+mkfs.ext4 /dev/vg-encrypted/root
+</code></pre>
+
+<p>Record the UUIDs of the partitions:</p>
+
+<pre><code class="bash">blkid /dev/vda1 /dev/vda2 /dev/vg-encrypted/root /dev/vg-encrypted/swap
+# These are my UUIDs
+/dev/vda1: UUID="409938b1-7244-4c34-a665-8f086dd1c5f9" TYPE="ext2" 
+/dev/vda2: UUID="b360acf3-b392-417f-bc08-90f378a5d26b" TYPE="crypto_LUKS" 
+/dev/vg-encrypted/root: UUID="efc68b96-de3d-4cb9-a884-127dca8c97d5" TYPE="ext4" 
+/dev/vg-encrypted/swap: UUID="6556fbea-0e34-4f4e-92cc-c18b3ccb0ece" TYPE="swap"
+</code></pre>
+
+<p>MAke a chroot directory (<code>/mnt/ubuntu</code>) and mount volumes:</p>
+
+<pre><code class="bash">mkdir -p /mnt/ubuntu &amp;&amp; \
+mount /dev/vg-encrypted/root /mnt/ubuntu &amp;&amp; \
+mkdir /mnt/ubuntu/boot &amp;&amp; \
+mount /dev/vda1 /mnt/ubuntu/boot
+</code></pre>
+
+<p>Download and install the latest debootstrap, then debootstrap 64-bit Ubuntu 14.04 LTS to the chroot directory:</p>
+
+<pre><code class="bash">cd
+wget "http://archive.ubuntu.com/ubuntu/pool/main/d/debootstrap/debootstrap_1.0.67_all.deb"
+dpkg --install debootstrap_1.0.67_all.deb
+debootstrap --arch amd64 trusty /mnt/ubuntu http://archive.ubuntu.com/ubuntu/
+</code></pre>
+
+<p>Mount <code>proc</code>, <code>dev</code> and <code>sys</code> and chroot into the bootstraped Ubuntu system:</p>
+
+<pre><code class="bash">mount -t proc none /mnt/ubuntu/proc
+mount -o bind /dev /mnt/ubuntu/dev
+mount -o bind /sys /mnt/ubuntu/sys
+cp /etc/resolv.conf /mnt/ubuntu/etc/
+LANG=C chroot /mnt/ubuntu /bin/bash
+</code></pre>
+
+<p>Create <code>/etc/fstab</code> (use your own UUIDs from above):</p>
+
+<pre><code class="bash">echo "
+UUID=efc68b96-de3d-4cb9-a884-127dca8c97d5 / ext4 defaults,noatime 0 0
+UUID=409938b1-7244-4c34-a665-8f086dd1c5f9 /boot ext2 defaults,relatime 0 1
+UUID=6556fbea-0e34-4f4e-92cc-c18b3ccb0ece none swap sw 0 0
+proc /proc proc defaults 0 0
+sys /sys sysfs defaults 0 0
+" &gt; /etc/fstab
+</code></pre>
+
+<p>Copy hostname to <code>/etc/hostname</code> (use the hostname you recorded above):</p>
+
+<pre><code class="bash">echo "Ubuntu-1404-trusty-64-minimal" &gt; /etc/hostname
+</code></pre>
+
+<p>Create <code>/etc/hosts</code>:</p>
+
+<pre><code class="bash">echo "127.0.0.1 localhost
+127.0.1.1 Ubuntu-1404-trusty-64-minimal
+::1 localhost ip6-localhost ip6-loopback
+fe00::0 ip6-localnet
+ff00::0 ip6-mcastprefix
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
+" &gt; /etc/hosts
+</code></pre>
+
+<p>Create <code>/etc/network/interfaces</code> (using your own IP and gateway information as recorded above):</p>
+
+<pre><code class="bash">echo "
+auto lo
+iface lo inet loopback
+
+# device: eth0
+auto  eth0
+iface eth0 inet static
+  address   78.47.247.195
+  broadcast 78.47.247.207
+  netmask   255.255.255.240
+  gateway   78.47.247.193
+  # default route to access subnet
+  up route add -net 78.47.247.192 netmask 255.255.255.240 gw 78.47.247.193 eth0
+
+iface eth0 inet6 static
+  address 2a01:4f8:d16:a8f::2
+  netmask 64
+  gateway 2a01:4f8:d16:a8f::1
+" &gt; /etc/network/interfaces
+</code></pre>
+
+<p>Setup <code>apt</code> to use Hetzner mirrors:</p>
+
+<pre><code class="bash">echo "
+# Packages and Updates from the Hetzner Ubuntu Mirror
+deb ftp://mirror.hetzner.de/ubuntu/packages trusty main restricted universe multiverse
+deb ftp://mirror.hetzner.de/ubuntu/packages trusty-updates main restricted universe multiverse
+deb ftp://mirror.hetzner.de/ubuntu/security trusty-security main restricted universe multiverse
+
+deb http://archive.ubuntu.com/ubuntu trusty main
+deb-src http://archive.ubuntu.com/ubuntu trusty main
+
+deb http://security.ubuntu.com/ubuntu trusty-security main
+deb-src http://security.ubuntu.com/ubuntu trusty-security main
+" &gt; /etc/apt/sources.list
+</code></pre>
+
+<p>Create <code>/etc/crypttab</code> (use your own UUIDs from above):</p>
+
+<pre><code class="bash">echo "# &lt;target name&gt; &lt;source device&gt; &lt;key file&gt; &lt;options&gt;
+vda2_decrypt UUID=b360acf3-b392-417f-bc08-90f378a5d26b none luks
+" &gt; /etc/crypttab
+</code></pre>
+
+<p>Update packages and select time zone:</p>
+
+<pre><code class="bash">apt-get update
+dpkg-reconfigure tzdata
+</code></pre>
+
+<p>Install essential packages (install <code>grub</code> to <code>/dev/vda</code> when prompted):</p>
+
+<pre><code class="bash">apt-get install aptitude openssh-server linux-image-generic cryptsetup lvm2 busybox dropbear
+</code></pre>
+
+<p>Extract the dropbear public key and add it to authorized_keys file:</p>
+
+<pre><code class="bash">dropbearkey -y -f /etc/initramfs-tools/root/.ssh/id_rsa.dropbear | \
+        grep "^ssh-rsa " &gt; /etc/initramfs-tools/root/.ssh/id_rsa.pub
+cat /etc/initramfs-tools/root/.ssh/id_rsa.pub &gt;&gt; /etc/initramfs-tools/root/.ssh/authorized_keys
+</code></pre>
+
+<p>Save the dropbear private key to your own computer as <code>~/.ssh/id_rsa.hetzner</code> (remember to chmod 600 the file):</p>
+
+<pre><code class="bash">cat /etc/initramfs-tools/root/.ssh/id_rsa
+</code></pre>
+
+<p>Add modules to system and initramfs:</p>
+
+<pre><code class="bash">echo "dm-crypt" &gt;&gt; /etc/modules
+echo "aes" &gt;&gt; /etc/initramfs-tools/modules
+echo "aes_i586" &gt;&gt; /etc/initramfs-tools/modules
+echo "aes_x86_64" &gt;&gt; /etc/initramfs-tools/modules
+echo "aes_generic" &gt;&gt; /etc/initramfs-tools/modules
+echo "dm-crypt" &gt;&gt; /etc/initramfs-tools/modules
+echo "dm-mod" &gt;&gt; /etc/initramfs-tools/modules
+echo "sha256" &gt;&gt; /etc/initramfs-tools/modules
+echo "sha256_generic" &gt;&gt; /etc/initramfs-tools/modules
+echo "lrw" &gt;&gt; /etc/initramfs-tools/modules
+echo "xts" &gt;&gt; /etc/initramfs-tools/modules
+echo "crypto_blkcipher" &gt;&gt; /etc/initramfs-tools/modules
+echo "gf128mul" &gt;&gt; /etc/initramfs-tools/modules
+</code></pre>
+
+<p>IMPORTANT: remove or comment out (#) the grub hidden settings and the default cmd-line, and set the time out to 1 sec (in <code>/etc/defaults/grub</code>):</p>
+
+<pre><code class="bash">#GRUB_HIDDEN_TIMEOUT=0
+#GRUB_HIDDEN_TIMEOUT_QUIET=true
+GRUB_TIMEOUT=1
+GRUB_DISTRIBUTOR=`lsb_release -i -s 2&gt; /dev/null || echo Debian`
+#GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
+</code></pre>
+
+<p>Update initramfs and grub:</p>
+
+<pre><code class="bash">update-initramfs -c -k all
+update-grub
+grub-install /dev/vda
+</code></pre>
+
+<p>Check that crytpsetup is in the initramfs sbin:</p>
+
+<pre><code class="bash">cd
+zcat /initrd.img | cpio -i -d
+ls sbin
+</code></pre>
+
+<p>Set root password:
+<code>bash
+passwd
+</code></p>
+
+<p>Add a user:</p>
+
+<pre><code class="bash">adduser akwb
+</code></pre>
+
+<p>Make added user an admin:
+<code>bash
+addgroup --system admin
+adduser akwb admin
+</code></p>
+
+<p>If you experience problems with IPv6 you may need to add the following to <code>/etc/rc.local</code> (before exit 0):</p>
+
+<pre><code class="bash">/sbin/ifdown --force eth0
+/sbin/ifup --force eth0
+</code></pre>
+
+<p>Exit the chroot, unmount and reboot:</p>
+
+<pre><code class="bash">exit
+umount /mnt/ubuntu/boot
+umount /mnt/ubuntu/proc
+umount /mnt/ubuntu/sys
+umount /mnt/ubuntu/dev
+umount /mnt/ubuntu
+sync
+reboot
+</code></pre>
+
+<p>To enter the LUKS passphrase upon boot, first save the following <a href="https://bugs.launchpad.net/ubuntu/+source/cryptsetup/+bug/595648/+attachment/4269370/+files/unlock-cryptroot">script</a> as <code>unlock-cryptroot</code> on your computer (not the vServer) and make it executable (<code>chmod +x unlock-cryptroot</code>):</p>
+
+<pre><code class="bash">#!/bin/sh
+
+usage() {
+    cat &lt;&lt;EOF
+${0##*/}:  Remotely unlock a LUKS-encrypted Ubuntu root filesystem
+
+Works around bug #595648 &lt;https://bugs.launchpad.net/bugs/595648&gt;
+
+Usage:  $0 [options] [--] &lt;host&gt;
+
+Arguments:
+
+  -h, --help
+    Display this usage message and exit
+
+  -i &lt;identity_file&gt;, --identity &lt;identity_file&gt;, --identity=&lt;identity_file&gt;
+    Path to the SSH private key.
+    Default: ${idbase}&lt;host&gt;
+
+  -k &lt;knownhosts&gt;, --known-hosts &lt;knownhosts&gt;, --known-hosts=&lt;knownhosts&gt;
+    Path to the 'known_hosts' file.
+    Default: ${knownhosts}
+
+  -l, --login
+    Just log in, don't try to unlock the system.
+
+  --
+    End of options; treat the next argument as the hostname even if it
+    begins with '-'.
+
+  &lt;host&gt;
+    The name of the remote system to unlock
+EOF
+}
+
+# handy logging and error handling functions
+log() { printf '%s\n' "$*"; }
+error() { log "ERROR: $@" &gt;&amp;2; }
+fatal() { error "$@"; exit 1; }
+try() { "$@" || fatal "'$@' failed"; }
+usage_fatal() { usage &gt;&amp;2; printf '\n' &gt;&amp;2; fatal "$@"; }
+
+# quote special characters so that:
+#    eval "set -- $(shell_quote "$@")"
+# is always a no-op no matter what values are in the positional
+# parameters.  note that it is run in a subshell to protect the
+# caller's environment.
+shell_quote() (
+    sep=
+    for i in "$@"; do
+       iesc=$(printf %s\\n "${i}eoi" | sed -e "s/'/'\\\\''/g")
+       iesc=\'${iesc%eoi}\'
+       printf %s "${sep}${iesc}"
+       sep=" "
+    done
+)
+
+# parse arguments
+knownhosts=~/.ssh/known_hosts.initramfs
+idbase=~/.ssh/id_rsa.initramfs_
+unset id
+runscript=true
+while [ "$#" -gt 0 ]; do
+    arg=$1
+    case $1 in
+        # convert "--opt=the value" to --opt "the value".
+        --*'='*) shift; set -- "${arg%%=*}" "${arg#*=}" "$@"; continue;;
+        -h|--help) usage; exit 0;;
+        -i|--identity) shift; id=$1;;
+        -k|--known-hosts) shift; knownhosts=$1;;
+        -l|--login) runscript=false;;
+        --) shift; break;;
+        -*) usage_fatal "unknown option: '$1'";;
+        *) break;;
+    esac
+    shift || usage_fatal "option '${arg}' requires a value"
+done
+[ "$#" -ge 1 ] || usage_fatal "no hostname specified"
+host=$1; shift
+[ "$#" -eq 0 ] || fatal "unknown argument: '$1'"
+
+[ -n "${id+set}" ] || id=${idbase}${host%%.*}
+[ -r "${id}" ] || fatal "can't read ssh key ${id}"
+
+
+script='#!/bin/sh
+PATH=/sbin:${PATH}
+
+p() { printf %s\\n "$*"; }
+log() { p "$@"; }
+warn() { log "WARNING: $@" &gt;&amp;2; }
+error() { log "ERROR: $@" &gt;&amp;2; }
+fatal() { error "$@"; exit 1; }
+try() { "$@" || fatal "'\''$@'\'' failed"; }
+
+getpid() {
+    psout=$(try ps) || exit 1
+    psout=$(p "${psout}" | grep "$1") || return 0
+    pswc=$(p "${psout}" | try wc -l) || exit 1
+    [ "${pswc}" -eq 1 ] || fatal "more than one instance of $1:
+${psout}"
+    p "${psout}" | try awk '\''{print$1}'\'' || exit 1
+}
+
+# if cryptroot is not running, then there is no password prompt so
+# there is nothing to do
+log "checking if /scripts/local-top/cryptroot is running..."
+cr_pid=$(getpid "/scripts/local-top/[c]ryptroot") || exit 1
+[ -n "${cr_pid}" ] || fatal "/scripts/local-top/cryptroot is not running"
+
+unset pw
+
+# keep prompting for a password over and over until cryptroot has
+# finished running
+while true; do
+    cs_pid=$(getpid "/sbin/[c]ryptsetup") || exit 1
+    [ -n "${cs_pid}" ] || {
+        log "waiting to see if there will be another passphrase prompt..."
+        # the next commands are all on one line so that they are still
+        # in busybox memory if the root filesystem is mounted during
+        # the sleep (which would cause this script to disappear during
+        # execution)
+        sleep 1; [ -d /proc/"${cr_pid}" ] || { log "done"; exit 0; }
+        continue
+    }
+
+    log "getting /sbin/cryptsetup command-line arguments..."
+    cs_args=$(try tr "\\0" "\\n" &lt;/proc/${cs_pid}/cmdline) || exit 1
+    set --
+    while IFS= read -r line; do
+        set -- "$@" "${line}"
+    done &lt;&lt;EOF
+${cs_args}
+EOF
+    log "command: $@"
+
+    [ -n "${pw+set}" ] &amp;&amp; {
+        log "trying previously entered passphrase..."
+        printf %s "${pw}" | try "$@"
+    } || {
+        pw=$(try /lib/cryptsetup/askpass "Enter passphrase: " &amp;&amp; echo x) \
+            || exit 1
+        pw=${pw%x}
+        printf %s "${pw}" | try "$@" || exit 1
+    }
+
+    log "passphrase accepted; killing passphrase prompt..."
+    for ap in \
+        "/lib/cryptsetup/[a]skpass" \
+        "[a]sk-for-password" \
+        ;
+    do
+        log "  checking for ${ap}..."
+        ap_pid=$(getpid "${ap}") || exit 1
+        [ -n "${ap_pid}" ] || continue
+        log "    killing PID ${ap_pid}..."
+        try kill "${ap_pid}"
+    done
+done
+'
+
+run_ssh() {
+    unset forcetty
+    case $1 in -t) forcetty=$1; shift;; esac
+    ssh -o UserKnownHostsFile="${knownhosts}" \
+        -i "${id}" \
+        ${forcetty} \
+        root@"${host}" "$@"
+}
+
+# $1 is the shell command to run; must be &lt; 1024 characters (busybox
+# limitation?)
+run_ssh_cmd() {
+    unset forcetty
+    case $1 in -t) forcetty=$1; shift;; esac
+    sshcmd='sh -c '$(shell_quote "$1")' -'
+    run_ssh ${forcetty} "${sshcmd}"
+}
+
+"${runscript}" || {
+    while IFS= read -r line; do
+        log "${line}"
+    done &lt;&lt;\EOF
+After you are logged in:
+  1. use 'ps -l' to get cryptsetup's command-line arguments
+  2. run:
+         /lib/cryptsetup/askpass "Enter passphrase: " \
+             | /sbin/cryptsetup &lt;args go here&gt;
+  3. kill 'plymouth ask-for-password' or 'askpass' as appropriate
+  4. log out
+
+EOF
+    run_ssh
+    exit $?
+}
+
+log "sending script to ${host}..."
+printf %s\\n "${script}" |
+run_ssh_cmd 'cat &gt;tmp.sh &amp;&amp; chmod +x tmp.sh' \
+    || fatal "unable to create script"
+
+log "running script on ${host}..."
+run_ssh_cmd -t './tmp.sh'
+</code></pre>
+
+<p>Use the script like this (enter passphrase when prompted, use the IP address of your own vServer)</p>
+
+<pre><code class="bash">./unlock-cryptroot -k ~/.ssh/known_hosts.initramfs -i ~/.ssh/id_rsa.hetzner 78.47.247.195
+</code></pre>
+
+<p>Should something go wrong you can always boot the Hetzner rescue system and chroot to your vServer:</p>
+
+<pre><code class="bash">cryptsetup luksOpen /dev/vda2 vda2_decrypt
+/etc/init.d/lvm2 start
+mkdir -p /mnt/ubuntu &amp;&amp; \
+mount /dev/vg-encrypted/root /mnt/ubuntu 
+mount /dev/vda1 /mnt/ubuntu/boot
+mount -t proc none /mnt/ubuntu/proc
+mount -o bind /dev /mnt/ubuntu/dev
+mount -o bind /sys /mnt/ubuntu/sys
+LANG=C chroot /mnt/ubuntu /bin/bash
+</code></pre>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Setting Up NEMID on Hardware on Ubuntu 14.04 LTS]]></title>
+    <link href="https://blog.wbnet.dk/2014/11/25/setting-up-nemid-on-hardware-on-ubuntu-14-dot-04-lts/"/>
+    <updated>2014-11-25T20:49:12+01:00</updated>
+    <id>https://blog.wbnet.dk/2014/11/25/setting-up-nemid-on-hardware-on-ubuntu-14-dot-04-lts</id>
+    <content type="html"><![CDATA[<p>In Denmark we have a public single-sign-on solution, NEMID. To set up NEMID on Hardware (if you have the Gemalto USB token) on Ubuntu 14.04 you have to install the proper token driver and a build environment for building the NEMID driver. These are the required commands (inspired by <a href="http://blog.klavsen.info/content/nemid-p%C3%A5-hardware-guide">this post</a>):</p>
+
+<pre><code class="bash">sudo apt-get install pcsc-tools libccid opensc libpcsclite-dev libboost1.55-dev libboost-system1.55-dev libboost-thread1.55-dev libboost-filesystem1.55-dev pkg-config zlib1g-dev
+sudo apt-get install build-essential
+</code></pre>
+
+<p>Then download the driver from NEMID, extract and configure:</p>
+
+<pre><code class="bash">wget https://www.nemid.nu/dk-da/support/aktiver_nemid/aktiver_nemid_paa_hardware/installer_driver/drivers/libgtop11dotnet_2.2.0.12.tar.gz
+tar xpzf libgtop11dotnet_2.2.0.12.tar.gz
+cd libgtop11dotnet-2.2.0.12
+./configure
+</code></pre>
+
+<p>Next, make and make install:
+<code>bash
+make
+sudo make install
+</code></p>
+
+<p>You will also need the icedtea-plugin (for web-browsers).</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Dell Inspiron 1720 Will Not Boot - CAPS Lock Blinking]]></title>
+    <link href="https://blog.wbnet.dk/2014/11/15/dell-inspiron-1720-will-not-boot-caps-lock-blinking/"/>
+    <updated>2014-11-15T08:59:27+01:00</updated>
+    <id>https://blog.wbnet.dk/2014/11/15/dell-inspiron-1720-will-not-boot-caps-lock-blinking</id>
+    <content type="html"><![CDATA[<p>Our daughter dropped our old Dell Inspiron 1720 that she uses for kids television. After the fall it would not boot and CAPS lock was blinking. Apparently, the RAM had been unseated, so it was an easy fix. The following <a href="http://forum.notebookreview.com/dell-inspiron-dell-studio/334461-inspiron-1720-help.html#6">procedure</a> worked:</p>
+
+<ul>
+<li>Unplug the AC and battery. Remove both the RAM modules as well.</li>
+<li>Press the power button. This will help to loose all electrical static remains left in it. Hold it for about 10 seconds.</li>
+<li>Then plugin the AC and turn on - it should automatically shut itself off again due to the absence of the RAM modules. However if it doesn&rsquo;t or if it blinks again then just power it down.</li>
+<li>Remove the AC, then re-install both the RAM modules, then press the power button again for the same 10 seconds to loose all discharge especially from the RAM itself. Then plugin only the AC. Power it. See if it works this time round.</li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Setting Up Nginx for SSL/TLS]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/22/setting-up-nginx-for-ssl-slash-tls/"/>
+    <updated>2014-10-22T09:27:08+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/22/setting-up-nginx-for-ssl-slash-tls</id>
+    <content type="html"><![CDATA[<p>Before you can setup Nginx for serving pages via SSL/TLS you should <a href="https://blog.wbnet.dk/2014/10/19/obtaining-a-free-one-year-startssl-ssl-slash-tls-certificate/">obtain a certificate</a> (e.g. <code>test.wbnet.dk.crt</code>) and a private key (e.g. <code>test.wbnet.dk.key</code>).</p>
+
+<p>To server pages via SSL/TLS with SSL 3.0 disabled (due to <a href="http://poodlebleed.com/">Poodlebleed</a>) use a Nginx configuration like (adapted from <a href="https://gist.github.com/plentz/6737338">this</a>):</p>
+
+<pre><code class="bash">server {
+  listen       443 ssl;
+  server_name  test.wbnet.dk;
+  ssl on;
+  ssl_certificate      /opt/local/etc/nginx/ssl/wbnet.dk/test.wbnet.dk.crt;
+  ssl_certificate_key  /opt/local/etc/nginx/ssl/wbnet.dk/test.wbnet.dk.key;
+
+  # enable session resumption to improve https performance
+  # http://vincent.bernat.im/en/blog/2011-ssl-session-reuse-rfc5077.html
+  ssl_session_cache    shared:SSL:1m;
+  ssl_session_timeout  5m;
+
+  # Diffie-Hellman parameter for DHE ciphersuites, recommended 2048 bits
+  # to generate use: openssl dhparam -rand – 2048
+  ssl_dhparam /opt/local/etc/nginx/ssl/dhparam.pem;
+
+  # read more here http://tautt.com/best-nginx-configuration-for-security/
+  # don't send the nginx version number in error pages and Server header
+  server_tokens off;
+
+  # config to don't allow the browser to render the page inside an frame or iframe
+  # and avoid clickjacking http://en.wikipedia.org/wiki/Clickjacking
+  # if you need to allow [i]frames, you can use SAMEORIGIN or even set an uri with
+  # ALLOW-FROM uri
+  # https://developer.mozilla.org/en-US/docs/HTTP/X-Frame-Options
+  add_header X-Frame-Options SAMEORIGIN;
+
+  # when serving user-supplied content, include a X-Content-Type-Options: nosniff
+  # header along with the Content-Type: header, to disable content-type sniffing
+  # on some browsers.
+  # https://www.owasp.org/index.php/List_of_useful_HTTP_headers
+  # currently suppoorted in IE &gt; 8
+  # http://blogs.msdn.com/b/ie/archive/2008/09/02/ie8-security-part-vi-beta-2-update.aspx
+  # http://msdn.microsoft.com/en-us/library/ie/gg622941(v=vs.85).aspx
+  # 'soon' on Firefox https://bugzilla.mozilla.org/show_bug.cgi?id=471020
+  add_header X-Content-Type-Options nosniff;
+
+  # This header enables the Cross-site scripting (XSS) filter built into most
+  # recent web browsers. It's usually enabled by default anyway, so the role
+  # of this header is to re-enable the filter for this particular website if
+  # it was disabled by the user.
+  # https://www.owasp.org/index.php/List_of_useful_HTTP_headers
+  add_header X-XSS-Protection "1; mode=block";
+
+  # enables server-side protection from BEAST attacks
+  # http://blog.ivanristic.com/2013/09/is-beast-still-a-threat.html
+  ssl_prefer_server_ciphers on;
+
+  # disable SSLv3(enabled by default since nginx 0.8.19) since it's less secure
+  # then TLS http://en.wikipedia.org/wiki/Secure_Sockets_Layer#SSL_3.0
+  ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+
+  # ciphers chosen for forward secrecy and compatibility
+  # http://blog.ivanristic.com/2013/08/configuring-apache-nginx-and-openssl-for-forward-secrecy.html
+  ssl_ciphers 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-RSA-RC4-SHA:ECDHE-ECDSA-RC4-SHA:RC4-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK';    
+
+  # enable ocsp stapling (mechanism by which a site can convey certificate
+  # revocation information to visitors in a privacy-preserving, scalable manner)
+  # http://blog.mozilla.org/security/2013/07/29/ocsp-stapling-in-firefox/
+  resolver 8.8.8.8;
+  ssl_stapling on;
+  ssl_trusted_certificate /opt/local/etc/nginx/ssl/wbnet.dk/test.wbnet.dk.crt;
+
+  # config to enable HSTS(HTTP Strict Transport Security)
+  # https://developer.mozilla.org/en-US/docs/Security/HTTP_Strict_Transport_Security
+  # to avoid ssl stripping https://en.wikipedia.org/wiki/SSL_stripping#SSL_stripping
+  add_header Strict-Transport-Security "max-age=31536000; includeSubdomains;";
+
+  #... the rest of your configuration
+
+}
+</code></pre>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Setting Up Nginx and PHP-FPM in an OmniOS Zone]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/21/setting-up-nginx-and-php-fpm-in-an-omnios-zone/"/>
+    <updated>2014-10-21T22:41:35+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/21/setting-up-nginx-and-php-fpm-in-an-omnios-zone</id>
+    <content type="html"><![CDATA[<p>Start by configuring a <a href="https://blog.wbnet.dk/2014/10/10/creating-and-cloning-an-omnios-zone/">zone</a> and <a href="https://blog.wbnet.dk/2014/10/10/install-packages-from-joyent-slash-smartos-repository-in-omnios/">install the Joyent/SmartOS package manager</a>.</p>
+
+<p>Then install Nginx and PHP-FPM (v5.5):</p>
+
+<pre><code class="bash">pkgin install nginx php55-fpm
+calculating dependencies... done.
+nothing to upgrade.
+7 packages to be installed: xmlcatmgr-2.2nb1 perl-5.20.0nb2 pcre-8.35nb1 php-5.5.16 libxml2-2.9.1nb2 nginx-1.6.0 php55-fpm-5.5.16 (28M to download, 105M to install)
+proceed ? [Y/n] y
+downloading packages...
+[...]
+nginx-1.6.0: Creating group ``www''
+nginx-1.6.0: Creating user ``www''
+[...]
+============================================================================
+This package has SMF support.  You may use svcadm(1M) to 'enable', 'disable'
+or 'restart' services.  To enable the instance(s) for this package, run:
+
+        /usr/sbin/svcadm enable svc:/pkgsrc/nginx:default
+
+Use svcs(1) to check on service status.  See smf(5) for more information.
+============================================================================
+[...]
+installing php55-fpm-5.5.16...
+php55-fpm-5.5.16: copying /opt/local/share/examples/php/php-fpm.conf to /opt/local/etc/php-fpm.conf
+============================================================================
+This package has SMF support.  You may use svcadm(1M) to 'enable', 'disable'
+or 'restart' services.  To enable the instance(s) for this package, run:
+
+        /usr/sbin/svcadm enable svc:/pkgsrc/php-fpm:default
+
+Use svcs(1) to check on service status.  See smf(5) for more information.
+============================================================================
+</code></pre>
+
+<p>As seen above a <code>www</code> user and <code>www</code> group is created for Nginx/web content. Start the Nginx web-server:</p>
+
+<pre><code class="bash">svcadm enable nginx
+</code></pre>
+
+<p>Browse to <code>http://ip-address</code>, and you should see the Nginx welcome page.</p>
+
+<p>Here is a minimal Nginx configuration file (<code>/opt/local/etc/nginx/nginx.conf</code>) to enable PHP-FPM:</p>
+
+<pre><code class="bash">user   www  www;
+worker_processes  1;
+events {
+    worker_connections  1024;
+}
+http {
+    include       /opt/local/etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    sendfile        on;
+    keepalive_timeout  65;
+    server {
+        listen       80;
+        server_name  localhost;
+
+        location / {
+            root   /www;
+            index  index.php index.html index.htm;
+        }
+
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   share/examples/nginx/html;
+        }
+
+        # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
+        #
+        location ~ \.php$ {
+            root           /www;
+            fastcgi_pass   127.0.0.1:9000;
+            fastcgi_index  index.php;
+            fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+            include        /opt/local/etc/nginx/fastcgi_params;
+        }
+    }
+}
+</code></pre>
+
+<p>Create a <code>/www</code> directory to hold html/php files and create an <code>index.php</code> file:</p>
+
+<pre><code class="php">&lt;?php
+phpinfo();
+?&gt;
+</code></pre>
+
+<p>Then restart Nginx and start PHP-FPM:</p>
+
+<pre><code class="bash">svcadm disable nginx &amp;&amp; svcadm enable nginx &amp;&amp; svcadm enable php-fpm
+</code></pre>
+
+<p>Browse to <code>http://ip-address</code> to verify that the PHP installation is working and to view PHP information.</p>
+
+<h2>Extensions</h2>
+
+<p>Search for available PHP extensions:</p>
+
+<pre><code class="bash">pkgin search php55-*
+php55-zlib-5.5.16nb1  PHP extension for zlib compression
+php55-zip-5.5.16     PHP extension for ZIP archive handling
+php55-zendoptimizerplus-7.0.0  Zend opcode cache and optimizer for PHP
+php55-yaz-1.1.1nb9   PHP extension for YAZ
+php55-xsl-5.5.16nb1  PHP extension for XSLT functions
+php55-xmlrpc-5.5.16  PHP extension for XML-RPC support
+php55-wddx-5.5.16    PHP extension for WDDX support
+php55-uploadprogress-1.0.1  PHP extension to track progress of a file upload
+php55-tt-rss-fever-plugin-1.2  Fever emulation plugin for Tiny Tiny RSS
+php55-tt-rss-1.12    Tiny Tiny RSS is an open source web-based RSS feed reader
+php55-tiki6-6.8nb1   Tiki Wiki CMS Groupware web-based application
+php55-tidy-5.5.16    PHP extension for tidy functions
+php55-sysvshm-5.5.16  PHP extension for SysV shared memory support
+php55-sysvsem-5.5.16  PHP extension for SysV semaphore support
+php55-sysvmsg-5.5.16  PHP extension for SysV IPC Message Queues support
+php55-ssh2-0.12      PHP bindings to the functions of libssh2
+php55-ssdeep-1.0.2   PHP extension for ssdeep
+[...]
+</code></pre>
+
+<p>To install a PHP extension install it, add the extension to <code>/opt/local/etc/php.ini</code>, and then restart PHP-FPM:</p>
+
+<pre><code>pkgin -y install php55-gd
+calculating dependencies... done.
+
+nothing to upgrade.
+4 packages to be installed: png-1.6.12 libjpeg-turbo-1.3.0nb1 freetype2-2.5.3nb1 php55-gd-5.5.16nb1 (2201K to download, 6474K to install)
+
+downloading packages...
+[...]
+installing packages...
+installing png-1.6.12...
+installing libjpeg-turbo-1.3.0nb1...
+installing freetype2-2.5.3nb1...
+installing php55-gd-5.5.16nb1...
+===========================================================================
+$NetBSD: MESSAGE.module,v 1.2 2004/11/05 21:50:11 jdolecek Exp $
+
+To enable this module, add the following to /opt/local/etc/php.ini:
+
+    extension=gd.so
+
+and make sure extension_dir points to the dir where gd.so is.
+
+Then restart your PHP5.5-enabled HTTP server to load this module.
+===========================================================================
+pkg_install warnings: 0, errors: 0
+reading local summary...
+processing local summary...
+updating database: 100%
+marking php55-gd-5.5.16nb1 as non auto-removable
+</code></pre>
+
+<p>Restart PHP-FPM</p>
+
+<pre><code class="bash">svcadm restart php-fpm
+</code></pre>
+
+<p>Now browse to <code>http://ip-address</code> and check that the extension (gd) is enabled.</p>
+]]></content>
+  </entry>
+  
+</feed>

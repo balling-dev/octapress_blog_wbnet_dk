@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: R | Balling's Bits]]></title>
+  <link href="https://blog.wbnet.dk/blog/categories/r/atom.xml" rel="self"/>
+  <link href="https://blog.wbnet.dk/"/>
+  <updated>2015-06-01T11:34:54+02:00</updated>
+  <id>https://blog.wbnet.dk/</id>
+  <author>
+    <name><![CDATA[Kristoffer Winther Balling]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Installing R Packages RCurl and XML on Ubuntu 14.04]]></title>
+    <link href="https://blog.wbnet.dk/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04/"/>
+    <updated>2014-11-03T20:14:16+01:00</updated>
+    <id>https://blog.wbnet.dk/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04</id>
+    <content type="html"><![CDATA[<p>Installing R packages <code>RCurl</code> and <code>XML</code> on a fresh Ubuntu 14.04 LTS throws a few errors.</p>
+
+<p><code>RCurl</code> throws the following error:</p>
+
+<pre><code class="splus">checking for curl-config... no
+Cannot find curl-config
+ERROR: configuration failed for package ‘RCurl’
+</code></pre>
+
+<p>The fix is easy. Install <code>libcurl4</code>:</p>
+
+<pre><code class="bash">sudo apt-get install libcurl4-openssl-dev
+</code></pre>
+
+<p>And then re-install the <code>RCurl</code> package.</p>
+
+<p><code>XML</code> throws another error:</p>
+
+<pre><code class="splus">checking for xml2-config... no
+Cannot find xml2-config
+ERROR: configuration failed for package ‘XML’
+</code></pre>
+
+<p>To fix it install <code>libxml2</code>:</p>
+
+<pre><code class="bash">sudo apt-get install libxml2-dev
+</code></pre>
+
+<p>And then re-install the <code>XML</code> package.</p>
+]]></content>
+  </entry>
+  
+</feed>

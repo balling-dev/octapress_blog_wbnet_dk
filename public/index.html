@@ -1,0 +1,1431 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Balling&#8217;s Bits</title>
+  <meta name="author" content="Kristoffer Winther Balling">
+
+  
+  <meta name="description" content="This is a guide to installing Ubuntu 14.04 LTS on an Hetzner VX6 vServer using LUKS encryption of the root partition. The guide is inspiried by blog &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="https://blog.wbnet.dk">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Balling's Bits" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<!-- Add fancyBox -->
+<link rel="stylesheet" href="/stylesheets/jquery.fancybox.css" type="text/css" media="screen" />
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Balling&#8217;s Bits</a></h1>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.wbnet.dk" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/categories/tech">Tech Stuff</a></li>
+  <li><a href="/blog/categories/r">R</a></li>
+  <li><a href="/blog/categories/photo-of-the-day">Photos</a></li>
+  <li><a href="/blog/categories/opskrifter">Opskrifter</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div class="blog-index">
+  
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/2015/05/31/fully-encrypted-hetzner-vx6-vserver-with-ubuntu-14-dot-04-lts/">LUKS Encrypted Hetzner VX6 vServer With Ubuntu 14.04 LTS</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2015-05-31T09:05:54+02:00'><span class='date'><span class='date-month'>May</span> <span class='date-day'>31</span><span class='date-suffix'>st</span>, <span class='date-year'>2015</span></span> <span class='time'>9:05 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>This is a guide to installing Ubuntu 14.04 LTS on an <a href="https://www.hetzner.de/">Hetzner</a> VX6 vServer using LUKS encryption of the root partition. The guide is inspiried by blog posts of <a href="https://www.dont-panic.cc/capi/2012/10/24/fully-encrypted-vserver-with-ubuntu-12-04/">Martin Carpella</a> and <a href="https://kiza.eu/journal/entry/697">Oliver Feiler</a>. On reboot you will be able to log in via ssh to provide the password for the LUKS partition (using dropbear and busybox).</p>
+
+<p>As pointed out by Martin Carpella it may sound stupid to encrypt the disk of a virtual machine as the private key can be pulled from memory by the host (i.e. Hetzner). However, encrypting all data on the disk protects it in case you cancel the vServer, or the vServer gets moved to a new host, or a failed disk is returned to the manufacturer or discarded etc. So it is more a matter of protecting the data if the VM is cancelled/offline rather than online. If you do not want Hetzner to be able to pull the private key, go for something other than a virtual machine (e.g. a root server).</p>
+
+<p>Anyway, here we go!</p>
+
+<p>When signing up for the vServer select the Hetzner Ubuntu 14.04 LTS 64-bit minimal-install image. Once the server is setup log in via SSH and make backups of these files:</p>
+
+<ul>
+<li><code>/etc/hostname</code></li>
+<li><code>/etc/hosts</code></li>
+<li><code>/etc/resolv.conf</code></li>
+<li><code>/etc/network/interfaces</code></li>
+</ul>
+
+
+<p>Log into the Hetzner robot interface and select 64-bit Linux rescue system, take note of the password for rescue system ssh login displayed on the page. Reboot your vServer in rescue mode and log in.</p>
+
+<p>Setup disk partitions using <code>fdisk</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>fdisk /dev/vda
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create a boot partition of 256 MB (<code>/dev/vda1</code>) and a root partition of the remaining free space (<code>/dev/vda2</code>). Mark the boot partition as bootable. My partition table looks like this:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>Disk /dev/vda: 26.8 GB, <span class="m">26843545600</span> bytes
+</span><span class='line'><span class="m">255</span> heads, <span class="m">63</span> sectors/track, <span class="m">3263</span> cylinders, total <span class="m">52428800</span> sectors
+</span><span class='line'><span class="nv">Units</span> <span class="o">=</span> sectors of <span class="m">1</span> * <span class="nv">512</span> <span class="o">=</span> <span class="m">512</span> bytes
+</span><span class='line'>Sector size <span class="o">(</span>logical/physical<span class="o">)</span>: <span class="m">512</span> bytes / <span class="m">512</span> bytes
+</span><span class='line'>I/O size <span class="o">(</span>minimum/optimal<span class="o">)</span>: <span class="m">512</span> bytes / <span class="m">512</span> bytes
+</span><span class='line'>Disk identifier: 0x00044f0a
+</span><span class='line'>
+</span><span class='line'>   Device Boot      Start         End      Blocks   Id  System
+</span><span class='line'>/dev/vda1   *        <span class="m">2048</span>      <span class="m">526335</span>      <span class="m">262144</span>   <span class="m">83</span>  Linux
+</span><span class='line'>/dev/vda2          <span class="m">526336</span>    <span class="m">52428799</span>    <span class="m">25951232</span>   <span class="m">83</span>  Linux
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create the encrypted partition (enter passphrase when prompted):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>cryptsetup --cipher aes-xts-plain64 -s <span class="m">512</span> --iter-time <span class="m">5000</span> luksFormat /dev/vda2
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Decrypt the partition and create a volume group and two logical volumes (root and swap):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>cryptsetup luksOpen /dev/vda2 vda2_decrypt
+</span><span class='line'>vgcreate vg-encrypted /dev/mapper/vda2_decrypt
+</span><span class='line'>lvcreate -L 2G -n swap vg-encrypted
+</span><span class='line'>lvcreate -L 22G -n root vg-encrypted
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create file systems:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>mkfs.ext2 /dev/vda1
+</span><span class='line'>mkswap /dev/vg-encrypted/swap
+</span><span class='line'>mkfs.ext4 /dev/vg-encrypted/root
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Record the UUIDs of the partitions:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>blkid /dev/vda1 /dev/vda2 /dev/vg-encrypted/root /dev/vg-encrypted/swap
+</span><span class='line'><span class="c"># These are my UUIDs</span>
+</span><span class='line'>/dev/vda1: <span class="nv">UUID</span><span class="o">=</span><span class="s2">&quot;409938b1-7244-4c34-a665-8f086dd1c5f9&quot;</span> <span class="nv">TYPE</span><span class="o">=</span><span class="s2">&quot;ext2&quot;</span>
+</span><span class='line'>/dev/vda2: <span class="nv">UUID</span><span class="o">=</span><span class="s2">&quot;b360acf3-b392-417f-bc08-90f378a5d26b&quot;</span> <span class="nv">TYPE</span><span class="o">=</span><span class="s2">&quot;crypto_LUKS&quot;</span>
+</span><span class='line'>/dev/vg-encrypted/root: <span class="nv">UUID</span><span class="o">=</span><span class="s2">&quot;efc68b96-de3d-4cb9-a884-127dca8c97d5&quot;</span> <span class="nv">TYPE</span><span class="o">=</span><span class="s2">&quot;ext4&quot;</span>
+</span><span class='line'>/dev/vg-encrypted/swap: <span class="nv">UUID</span><span class="o">=</span><span class="s2">&quot;6556fbea-0e34-4f4e-92cc-c18b3ccb0ece&quot;</span> <span class="nv">TYPE</span><span class="o">=</span><span class="s2">&quot;swap&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>MAke a chroot directory (<code>/mnt/ubuntu</code>) and mount volumes:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>mkdir -p /mnt/ubuntu <span class="o">&amp;&amp;</span> <span class="se">\</span>
+</span><span class='line'>mount /dev/vg-encrypted/root /mnt/ubuntu <span class="o">&amp;&amp;</span> <span class="se">\</span>
+</span><span class='line'>mkdir /mnt/ubuntu/boot <span class="o">&amp;&amp;</span> <span class="se">\</span>
+</span><span class='line'>mount /dev/vda1 /mnt/ubuntu/boot
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Download and install the latest debootstrap, then debootstrap 64-bit Ubuntu 14.04 LTS to the chroot directory:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">cd</span>
+</span><span class='line'>wget <span class="s2">&quot;http://archive.ubuntu.com/ubuntu/pool/main/d/debootstrap/debootstrap_1.0.67_all.deb&quot;</span>
+</span><span class='line'>dpkg --install debootstrap_1.0.67_all.deb
+</span><span class='line'>debootstrap --arch amd64 trusty /mnt/ubuntu http://archive.ubuntu.com/ubuntu/
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Mount <code>proc</code>, <code>dev</code> and <code>sys</code> and chroot into the bootstraped Ubuntu system:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>mount -t proc none /mnt/ubuntu/proc
+</span><span class='line'>mount -o <span class="nb">bind</span> /dev /mnt/ubuntu/dev
+</span><span class='line'>mount -o <span class="nb">bind</span> /sys /mnt/ubuntu/sys
+</span><span class='line'>cp /etc/resolv.conf /mnt/ubuntu/etc/
+</span><span class='line'><span class="nv">LANG</span><span class="o">=</span>C chroot /mnt/ubuntu /bin/bash
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create <code>/etc/fstab</code> (use your own UUIDs from above):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">echo</span> <span class="s2">&quot;</span>
+</span><span class='line'><span class="s2">UUID=efc68b96-de3d-4cb9-a884-127dca8c97d5 / ext4 defaults,noatime 0 0</span>
+</span><span class='line'><span class="s2">UUID=409938b1-7244-4c34-a665-8f086dd1c5f9 /boot ext2 defaults,relatime 0 1</span>
+</span><span class='line'><span class="s2">UUID=6556fbea-0e34-4f4e-92cc-c18b3ccb0ece none swap sw 0 0</span>
+</span><span class='line'><span class="s2">proc /proc proc defaults 0 0</span>
+</span><span class='line'><span class="s2">sys /sys sysfs defaults 0 0</span>
+</span><span class='line'><span class="s2">&quot;</span> &gt; /etc/fstab
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Copy hostname to <code>/etc/hostname</code> (use the hostname you recorded above):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">echo</span> <span class="s2">&quot;Ubuntu-1404-trusty-64-minimal&quot;</span> &gt; /etc/hostname
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create <code>/etc/hosts</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">echo</span> <span class="s2">&quot;127.0.0.1 localhost</span>
+</span><span class='line'><span class="s2">127.0.1.1 Ubuntu-1404-trusty-64-minimal</span>
+</span><span class='line'><span class="s2">::1 localhost ip6-localhost ip6-loopback</span>
+</span><span class='line'><span class="s2">fe00::0 ip6-localnet</span>
+</span><span class='line'><span class="s2">ff00::0 ip6-mcastprefix</span>
+</span><span class='line'><span class="s2">ff02::1 ip6-allnodes</span>
+</span><span class='line'><span class="s2">ff02::2 ip6-allrouters</span>
+</span><span class='line'><span class="s2">&quot;</span> &gt; /etc/hosts
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create <code>/etc/network/interfaces</code> (using your own IP and gateway information as recorded above):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">echo</span> <span class="s2">&quot;</span>
+</span><span class='line'><span class="s2">auto lo</span>
+</span><span class='line'><span class="s2">iface lo inet loopback</span>
+</span><span class='line'>
+</span><span class='line'><span class="s2"># device: eth0</span>
+</span><span class='line'><span class="s2">auto  eth0</span>
+</span><span class='line'><span class="s2">iface eth0 inet static</span>
+</span><span class='line'><span class="s2">  address   78.47.247.195</span>
+</span><span class='line'><span class="s2">  broadcast 78.47.247.207</span>
+</span><span class='line'><span class="s2">  netmask   255.255.255.240</span>
+</span><span class='line'><span class="s2">  gateway   78.47.247.193</span>
+</span><span class='line'><span class="s2">  # default route to access subnet</span>
+</span><span class='line'><span class="s2">  up route add -net 78.47.247.192 netmask 255.255.255.240 gw 78.47.247.193 eth0</span>
+</span><span class='line'>
+</span><span class='line'><span class="s2">iface eth0 inet6 static</span>
+</span><span class='line'><span class="s2">  address 2a01:4f8:d16:a8f::2</span>
+</span><span class='line'><span class="s2">  netmask 64</span>
+</span><span class='line'><span class="s2">  gateway 2a01:4f8:d16:a8f::1</span>
+</span><span class='line'><span class="s2">&quot;</span> &gt; /etc/network/interfaces
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Setup <code>apt</code> to use Hetzner mirrors:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">echo</span> <span class="s2">&quot;</span>
+</span><span class='line'><span class="s2"># Packages and Updates from the Hetzner Ubuntu Mirror</span>
+</span><span class='line'><span class="s2">deb ftp://mirror.hetzner.de/ubuntu/packages trusty main restricted universe multiverse</span>
+</span><span class='line'><span class="s2">deb ftp://mirror.hetzner.de/ubuntu/packages trusty-updates main restricted universe multiverse</span>
+</span><span class='line'><span class="s2">deb ftp://mirror.hetzner.de/ubuntu/security trusty-security main restricted universe multiverse</span>
+</span><span class='line'>
+</span><span class='line'><span class="s2">deb http://archive.ubuntu.com/ubuntu trusty main</span>
+</span><span class='line'><span class="s2">deb-src http://archive.ubuntu.com/ubuntu trusty main</span>
+</span><span class='line'>
+</span><span class='line'><span class="s2">deb http://security.ubuntu.com/ubuntu trusty-security main</span>
+</span><span class='line'><span class="s2">deb-src http://security.ubuntu.com/ubuntu trusty-security main</span>
+</span><span class='line'><span class="s2">&quot;</span> &gt; /etc/apt/sources.list
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create <code>/etc/crypttab</code> (use your own UUIDs from above):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">echo</span> <span class="s2">&quot;# &lt;target name&gt; &lt;source device&gt; &lt;key file&gt; &lt;options&gt;</span>
+</span><span class='line'><span class="s2">vda2_decrypt UUID=b360acf3-b392-417f-bc08-90f378a5d26b none luks</span>
+</span><span class='line'><span class="s2">&quot;</span> &gt; /etc/crypttab
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Update packages and select time zone:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>apt-get update
+</span><span class='line'>dpkg-reconfigure tzdata
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Install essential packages (install <code>grub</code> to <code>/dev/vda</code> when prompted):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>apt-get install aptitude openssh-server linux-image-generic cryptsetup lvm2 busybox dropbear
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Extract the dropbear public key and add it to authorized_keys file:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>dropbearkey -y -f /etc/initramfs-tools/root/.ssh/id_rsa.dropbear <span class="p">|</span> <span class="se">\</span>
+</span><span class='line'>        grep <span class="s2">&quot;^ssh-rsa &quot;</span> &gt; /etc/initramfs-tools/root/.ssh/id_rsa.pub
+</span><span class='line'>cat /etc/initramfs-tools/root/.ssh/id_rsa.pub &gt;&gt; /etc/initramfs-tools/root/.ssh/authorized_keys
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Save the dropbear private key to your own computer as <code>~/.ssh/id_rsa.hetzner</code> (remember to chmod 600 the file):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>cat /etc/initramfs-tools/root/.ssh/id_rsa
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Add modules to system and initramfs:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">echo</span> <span class="s2">&quot;dm-crypt&quot;</span> &gt;&gt; /etc/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;aes&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;aes_i586&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;aes_x86_64&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;aes_generic&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;dm-crypt&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;dm-mod&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;sha256&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;sha256_generic&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;lrw&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;xts&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;crypto_blkcipher&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;gf128mul&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>IMPORTANT: remove or comment out (#) the grub hidden settings and the default cmd-line, and set the time out to 1 sec (in <code>/etc/defaults/grub</code>):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="c">#GRUB_HIDDEN_TIMEOUT=0</span>
+</span><span class='line'><span class="c">#GRUB_HIDDEN_TIMEOUT_QUIET=true</span>
+</span><span class='line'><span class="nv">GRUB_TIMEOUT</span><span class="o">=</span>1
+</span><span class='line'><span class="nv">GRUB_DISTRIBUTOR</span><span class="o">=</span><span class="sb">`</span>lsb_release -i -s 2&gt; /dev/null <span class="o">||</span> <span class="nb">echo </span>Debian<span class="sb">`</span>
+</span><span class='line'><span class="c">#GRUB_CMDLINE_LINUX_DEFAULT=&quot;quiet splash&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Update initramfs and grub:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>update-initramfs -c -k all
+</span><span class='line'>update-grub
+</span><span class='line'>grub-install /dev/vda
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Check that crytpsetup is in the initramfs sbin:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">cd</span>
+</span><span class='line'>zcat /initrd.img <span class="p">|</span> cpio -i -d
+</span><span class='line'>ls sbin
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Set root password:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>passwd
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Add a user:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>adduser akwb
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Make added user an admin:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>addgroup --system admin
+</span><span class='line'>adduser akwb admin
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If you experience problems with IPv6 you may need to add the following to <code>/etc/rc.local</code> (before exit 0):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>/sbin/ifdown --force eth0
+</span><span class='line'>/sbin/ifup --force eth0
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Exit the chroot, unmount and reboot:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">exit</span>
+</span><span class='line'>umount /mnt/ubuntu/boot
+</span><span class='line'>umount /mnt/ubuntu/proc
+</span><span class='line'>umount /mnt/ubuntu/sys
+</span><span class='line'>umount /mnt/ubuntu/dev
+</span><span class='line'>umount /mnt/ubuntu
+</span><span class='line'>sync
+</span><span class='line'>reboot
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>To enter the LUKS passphrase upon boot, first save the following <a href="https://bugs.launchpad.net/ubuntu/+source/cryptsetup/+bug/595648/+attachment/4269370/+files/unlock-cryptroot">script</a> as <code>unlock-cryptroot</code> on your computer (not the vServer) and make it executable (<code>chmod +x unlock-cryptroot</code>):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+<span class='line-number'>65</span>
+<span class='line-number'>66</span>
+<span class='line-number'>67</span>
+<span class='line-number'>68</span>
+<span class='line-number'>69</span>
+<span class='line-number'>70</span>
+<span class='line-number'>71</span>
+<span class='line-number'>72</span>
+<span class='line-number'>73</span>
+<span class='line-number'>74</span>
+<span class='line-number'>75</span>
+<span class='line-number'>76</span>
+<span class='line-number'>77</span>
+<span class='line-number'>78</span>
+<span class='line-number'>79</span>
+<span class='line-number'>80</span>
+<span class='line-number'>81</span>
+<span class='line-number'>82</span>
+<span class='line-number'>83</span>
+<span class='line-number'>84</span>
+<span class='line-number'>85</span>
+<span class='line-number'>86</span>
+<span class='line-number'>87</span>
+<span class='line-number'>88</span>
+<span class='line-number'>89</span>
+<span class='line-number'>90</span>
+<span class='line-number'>91</span>
+<span class='line-number'>92</span>
+<span class='line-number'>93</span>
+<span class='line-number'>94</span>
+<span class='line-number'>95</span>
+<span class='line-number'>96</span>
+<span class='line-number'>97</span>
+<span class='line-number'>98</span>
+<span class='line-number'>99</span>
+<span class='line-number'>100</span>
+<span class='line-number'>101</span>
+<span class='line-number'>102</span>
+<span class='line-number'>103</span>
+<span class='line-number'>104</span>
+<span class='line-number'>105</span>
+<span class='line-number'>106</span>
+<span class='line-number'>107</span>
+<span class='line-number'>108</span>
+<span class='line-number'>109</span>
+<span class='line-number'>110</span>
+<span class='line-number'>111</span>
+<span class='line-number'>112</span>
+<span class='line-number'>113</span>
+<span class='line-number'>114</span>
+<span class='line-number'>115</span>
+<span class='line-number'>116</span>
+<span class='line-number'>117</span>
+<span class='line-number'>118</span>
+<span class='line-number'>119</span>
+<span class='line-number'>120</span>
+<span class='line-number'>121</span>
+<span class='line-number'>122</span>
+<span class='line-number'>123</span>
+<span class='line-number'>124</span>
+<span class='line-number'>125</span>
+<span class='line-number'>126</span>
+<span class='line-number'>127</span>
+<span class='line-number'>128</span>
+<span class='line-number'>129</span>
+<span class='line-number'>130</span>
+<span class='line-number'>131</span>
+<span class='line-number'>132</span>
+<span class='line-number'>133</span>
+<span class='line-number'>134</span>
+<span class='line-number'>135</span>
+<span class='line-number'>136</span>
+<span class='line-number'>137</span>
+<span class='line-number'>138</span>
+<span class='line-number'>139</span>
+<span class='line-number'>140</span>
+<span class='line-number'>141</span>
+<span class='line-number'>142</span>
+<span class='line-number'>143</span>
+<span class='line-number'>144</span>
+<span class='line-number'>145</span>
+<span class='line-number'>146</span>
+<span class='line-number'>147</span>
+<span class='line-number'>148</span>
+<span class='line-number'>149</span>
+<span class='line-number'>150</span>
+<span class='line-number'>151</span>
+<span class='line-number'>152</span>
+<span class='line-number'>153</span>
+<span class='line-number'>154</span>
+<span class='line-number'>155</span>
+<span class='line-number'>156</span>
+<span class='line-number'>157</span>
+<span class='line-number'>158</span>
+<span class='line-number'>159</span>
+<span class='line-number'>160</span>
+<span class='line-number'>161</span>
+<span class='line-number'>162</span>
+<span class='line-number'>163</span>
+<span class='line-number'>164</span>
+<span class='line-number'>165</span>
+<span class='line-number'>166</span>
+<span class='line-number'>167</span>
+<span class='line-number'>168</span>
+<span class='line-number'>169</span>
+<span class='line-number'>170</span>
+<span class='line-number'>171</span>
+<span class='line-number'>172</span>
+<span class='line-number'>173</span>
+<span class='line-number'>174</span>
+<span class='line-number'>175</span>
+<span class='line-number'>176</span>
+<span class='line-number'>177</span>
+<span class='line-number'>178</span>
+<span class='line-number'>179</span>
+<span class='line-number'>180</span>
+<span class='line-number'>181</span>
+<span class='line-number'>182</span>
+<span class='line-number'>183</span>
+<span class='line-number'>184</span>
+<span class='line-number'>185</span>
+<span class='line-number'>186</span>
+<span class='line-number'>187</span>
+<span class='line-number'>188</span>
+<span class='line-number'>189</span>
+<span class='line-number'>190</span>
+<span class='line-number'>191</span>
+<span class='line-number'>192</span>
+<span class='line-number'>193</span>
+<span class='line-number'>194</span>
+<span class='line-number'>195</span>
+<span class='line-number'>196</span>
+<span class='line-number'>197</span>
+<span class='line-number'>198</span>
+<span class='line-number'>199</span>
+<span class='line-number'>200</span>
+<span class='line-number'>201</span>
+<span class='line-number'>202</span>
+<span class='line-number'>203</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="c">#!/bin/sh</span>
+</span><span class='line'>
+</span><span class='line'>usage<span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>    cat <span class="s">&lt;&lt;EOF</span>
+</span><span class='line'><span class="s">${0##*/}:  Remotely unlock a LUKS-encrypted Ubuntu root filesystem</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">Works around bug #595648 &lt;https://bugs.launchpad.net/bugs/595648&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">Usage:  $0 [options] [--] &lt;host&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">Arguments:</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">  -h, --help</span>
+</span><span class='line'><span class="s">    Display this usage message and exit</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">  -i &lt;identity_file&gt;, --identity &lt;identity_file&gt;, --identity=&lt;identity_file&gt;</span>
+</span><span class='line'><span class="s">    Path to the SSH private key.</span>
+</span><span class='line'><span class="s">    Default: ${idbase}&lt;host&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">  -k &lt;knownhosts&gt;, --known-hosts &lt;knownhosts&gt;, --known-hosts=&lt;knownhosts&gt;</span>
+</span><span class='line'><span class="s">    Path to the &#39;known_hosts&#39; file.</span>
+</span><span class='line'><span class="s">    Default: ${knownhosts}</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">  -l, --login</span>
+</span><span class='line'><span class="s">    Just log in, don&#39;t try to unlock the system.</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">  --</span>
+</span><span class='line'><span class="s">    End of options; treat the next argument as the hostname even if it</span>
+</span><span class='line'><span class="s">    begins with &#39;-&#39;.</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">  &lt;host&gt;</span>
+</span><span class='line'><span class="s">    The name of the remote system to unlock</span>
+</span><span class='line'><span class="s">EOF</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c"># handy logging and error handling functions</span>
+</span><span class='line'>log<span class="o">()</span> <span class="o">{</span> <span class="nb">printf</span> <span class="s1">&#39;%s\n&#39;</span> <span class="s2">&quot;$*&quot;</span><span class="p">;</span> <span class="o">}</span>
+</span><span class='line'>error<span class="o">()</span> <span class="o">{</span> log <span class="s2">&quot;ERROR: $@&quot;</span> &gt;<span class="p">&amp;</span>2<span class="p">;</span> <span class="o">}</span>
+</span><span class='line'>fatal<span class="o">()</span> <span class="o">{</span> error <span class="s2">&quot;$@&quot;</span><span class="p">;</span> <span class="nb">exit </span>1<span class="p">;</span> <span class="o">}</span>
+</span><span class='line'>try<span class="o">()</span> <span class="o">{</span> <span class="s2">&quot;$@&quot;</span> <span class="o">||</span> fatal <span class="s2">&quot;&#39;$@&#39; failed&quot;</span><span class="p">;</span> <span class="o">}</span>
+</span><span class='line'>usage_fatal<span class="o">()</span> <span class="o">{</span> usage &gt;<span class="p">&amp;</span>2<span class="p">;</span> <span class="nb">printf</span> <span class="s1">&#39;\n&#39;</span> &gt;<span class="p">&amp;</span>2<span class="p">;</span> fatal <span class="s2">&quot;$@&quot;</span><span class="p">;</span> <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c"># quote special characters so that:</span>
+</span><span class='line'><span class="c">#    eval &quot;set -- $(shell_quote &quot;$@&quot;)&quot;</span>
+</span><span class='line'><span class="c"># is always a no-op no matter what values are in the positional</span>
+</span><span class='line'><span class="c"># parameters.  note that it is run in a subshell to protect the</span>
+</span><span class='line'><span class="c"># caller&#39;s environment.</span>
+</span><span class='line'>shell_quote<span class="o">()</span> <span class="o">(</span>
+</span><span class='line'>    <span class="nv">sep</span><span class="o">=</span>
+</span><span class='line'>    <span class="k">for</span> i in <span class="s2">&quot;$@&quot;</span><span class="p">;</span> <span class="k">do</span>
+</span><span class='line'>       <span class="nv">iesc</span><span class="o">=</span><span class="k">$(</span><span class="nb">printf</span> %s<span class="se">\\</span>n <span class="s2">&quot;${i}eoi&quot;</span> <span class="p">|</span> sed -e <span class="s2">&quot;s/&#39;/&#39;\\\\&#39;&#39;/g&quot;</span><span class="k">)</span>
+</span><span class='line'>       <span class="nv">iesc</span><span class="o">=</span><span class="se">\&#39;</span><span class="k">${</span><span class="nv">iesc</span><span class="p">%eoi</span><span class="k">}</span><span class="se">\&#39;</span>
+</span><span class='line'>       <span class="nb">printf</span> %s <span class="s2">&quot;${sep}${iesc}&quot;</span>
+</span><span class='line'>       <span class="nv">sep</span><span class="o">=</span><span class="s2">&quot; &quot;</span>
+</span><span class='line'>    <span class="k">done</span>
+</span><span class='line'><span class="o">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c"># parse arguments</span>
+</span><span class='line'><span class="nv">knownhosts</span><span class="o">=</span>~/.ssh/known_hosts.initramfs
+</span><span class='line'><span class="nv">idbase</span><span class="o">=</span>~/.ssh/id_rsa.initramfs_
+</span><span class='line'><span class="nb">unset </span>id
+</span><span class='line'><span class="nv">runscript</span><span class="o">=</span><span class="nb">true</span>
+</span><span class='line'><span class="k">while</span> <span class="o">[</span> <span class="s2">&quot;$#&quot;</span> -gt <span class="m">0</span> <span class="o">]</span><span class="p">;</span> <span class="k">do</span>
+</span><span class='line'>    <span class="nv">arg</span><span class="o">=</span><span class="nv">$1</span>
+</span><span class='line'>    <span class="k">case</span> <span class="nv">$1</span> in
+</span><span class='line'>        <span class="c"># convert &quot;--opt=the value&quot; to --opt &quot;the value&quot;.</span>
+</span><span class='line'>        --*<span class="s1">&#39;=&#39;</span>*<span class="o">)</span> <span class="nb">shift</span><span class="p">;</span> <span class="nb">set</span> -- <span class="s2">&quot;${arg%%=*}&quot;</span> <span class="s2">&quot;${arg#*=}&quot;</span> <span class="s2">&quot;$@&quot;</span><span class="p">;</span> <span class="k">continue</span><span class="p">;;</span>
+</span><span class='line'>        -h<span class="p">|</span>--help<span class="o">)</span> usage<span class="p">;</span> <span class="nb">exit </span>0<span class="p">;;</span>
+</span><span class='line'>        -i<span class="p">|</span>--identity<span class="o">)</span> <span class="nb">shift</span><span class="p">;</span> <span class="nv">id</span><span class="o">=</span><span class="nv">$1</span><span class="p">;;</span>
+</span><span class='line'>        -k<span class="p">|</span>--known-hosts<span class="o">)</span> <span class="nb">shift</span><span class="p">;</span> <span class="nv">knownhosts</span><span class="o">=</span><span class="nv">$1</span><span class="p">;;</span>
+</span><span class='line'>        -l<span class="p">|</span>--login<span class="o">)</span> <span class="nv">runscript</span><span class="o">=</span><span class="nb">false</span><span class="p">;;</span>
+</span><span class='line'>        --<span class="o">)</span> <span class="nb">shift</span><span class="p">;</span> <span class="nb">break</span><span class="p">;;</span>
+</span><span class='line'>        -*<span class="o">)</span> usage_fatal <span class="s2">&quot;unknown option: &#39;$1&#39;&quot;</span><span class="p">;;</span>
+</span><span class='line'>        *<span class="o">)</span> <span class="nb">break</span><span class="p">;;</span>
+</span><span class='line'>    <span class="k">esac</span>
+</span><span class='line'>    <span class="nb">shift</span> <span class="o">||</span> usage_fatal <span class="s2">&quot;option &#39;${arg}&#39; requires a value&quot;</span>
+</span><span class='line'><span class="k">done</span>
+</span><span class='line'><span class="o">[</span> <span class="s2">&quot;$#&quot;</span> -ge <span class="m">1</span> <span class="o">]</span> <span class="o">||</span> usage_fatal <span class="s2">&quot;no hostname specified&quot;</span>
+</span><span class='line'><span class="nv">host</span><span class="o">=</span><span class="nv">$1</span><span class="p">;</span> <span class="nb">shift</span>
+</span><span class='line'><span class="o">[</span> <span class="s2">&quot;$#&quot;</span> -eq <span class="m">0</span> <span class="o">]</span> <span class="o">||</span> fatal <span class="s2">&quot;unknown argument: &#39;$1&#39;&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">[</span> -n <span class="s2">&quot;${id+set}&quot;</span> <span class="o">]</span> <span class="o">||</span> <span class="nv">id</span><span class="o">=</span><span class="k">${</span><span class="nv">idbase</span><span class="k">}${</span><span class="nv">host</span><span class="p">%%.*</span><span class="k">}</span>
+</span><span class='line'><span class="o">[</span> -r <span class="s2">&quot;${id}&quot;</span> <span class="o">]</span> <span class="o">||</span> fatal <span class="s2">&quot;can&#39;t read ssh key ${id}&quot;</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="nv">script</span><span class="o">=</span><span class="s1">&#39;#!/bin/sh</span>
+</span><span class='line'><span class="s1">PATH=/sbin:${PATH}</span>
+</span><span class='line'>
+</span><span class='line'><span class="s1">p() { printf %s\\n &quot;$*&quot;; }</span>
+</span><span class='line'><span class="s1">log() { p &quot;$@&quot;; }</span>
+</span><span class='line'><span class="s1">warn() { log &quot;WARNING: $@&quot; &gt;&amp;2; }</span>
+</span><span class='line'><span class="s1">error() { log &quot;ERROR: $@&quot; &gt;&amp;2; }</span>
+</span><span class='line'><span class="s1">fatal() { error &quot;$@&quot;; exit 1; }</span>
+</span><span class='line'><span class="s1">try() { &quot;$@&quot; || fatal &quot;&#39;</span><span class="se">\&#39;</span><span class="s1">&#39;$@&#39;</span><span class="se">\&#39;</span><span class="s1">&#39; failed&quot;; }</span>
+</span><span class='line'>
+</span><span class='line'><span class="s1">getpid() {</span>
+</span><span class='line'><span class="s1">    psout=$(try ps) || exit 1</span>
+</span><span class='line'><span class="s1">    psout=$(p &quot;${psout}&quot; | grep &quot;$1&quot;) || return 0</span>
+</span><span class='line'><span class="s1">    pswc=$(p &quot;${psout}&quot; | try wc -l) || exit 1</span>
+</span><span class='line'><span class="s1">    [ &quot;${pswc}&quot; -eq 1 ] || fatal &quot;more than one instance of $1:</span>
+</span><span class='line'><span class="s1">${psout}&quot;</span>
+</span><span class='line'><span class="s1">    p &quot;${psout}&quot; | try awk &#39;</span><span class="se">\&#39;</span><span class="s1">&#39;{print$1}&#39;</span><span class="se">\&#39;</span><span class="s1">&#39; || exit 1</span>
+</span><span class='line'><span class="s1">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="s1"># if cryptroot is not running, then there is no password prompt so</span>
+</span><span class='line'><span class="s1"># there is nothing to do</span>
+</span><span class='line'><span class="s1">log &quot;checking if /scripts/local-top/cryptroot is running...&quot;</span>
+</span><span class='line'><span class="s1">cr_pid=$(getpid &quot;/scripts/local-top/[c]ryptroot&quot;) || exit 1</span>
+</span><span class='line'><span class="s1">[ -n &quot;${cr_pid}&quot; ] || fatal &quot;/scripts/local-top/cryptroot is not running&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="s1">unset pw</span>
+</span><span class='line'>
+</span><span class='line'><span class="s1"># keep prompting for a password over and over until cryptroot has</span>
+</span><span class='line'><span class="s1"># finished running</span>
+</span><span class='line'><span class="s1">while true; do</span>
+</span><span class='line'><span class="s1">    cs_pid=$(getpid &quot;/sbin/[c]ryptsetup&quot;) || exit 1</span>
+</span><span class='line'><span class="s1">    [ -n &quot;${cs_pid}&quot; ] || {</span>
+</span><span class='line'><span class="s1">        log &quot;waiting to see if there will be another passphrase prompt...&quot;</span>
+</span><span class='line'><span class="s1">        # the next commands are all on one line so that they are still</span>
+</span><span class='line'><span class="s1">        # in busybox memory if the root filesystem is mounted during</span>
+</span><span class='line'><span class="s1">        # the sleep (which would cause this script to disappear during</span>
+</span><span class='line'><span class="s1">        # execution)</span>
+</span><span class='line'><span class="s1">        sleep 1; [ -d /proc/&quot;${cr_pid}&quot; ] || { log &quot;done&quot;; exit 0; }</span>
+</span><span class='line'><span class="s1">        continue</span>
+</span><span class='line'><span class="s1">    }</span>
+</span><span class='line'>
+</span><span class='line'><span class="s1">    log &quot;getting /sbin/cryptsetup command-line arguments...&quot;</span>
+</span><span class='line'><span class="s1">    cs_args=$(try tr &quot;\\0&quot; &quot;\\n&quot; &lt;/proc/${cs_pid}/cmdline) || exit 1</span>
+</span><span class='line'><span class="s1">    set --</span>
+</span><span class='line'><span class="s1">    while IFS= read -r line; do</span>
+</span><span class='line'><span class="s1">        set -- &quot;$@&quot; &quot;${line}&quot;</span>
+</span><span class='line'><span class="s1">    done &lt;&lt;EOF</span>
+</span><span class='line'><span class="s1">${cs_args}</span>
+</span><span class='line'><span class="s1">EOF</span>
+</span><span class='line'><span class="s1">    log &quot;command: $@&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="s1">    [ -n &quot;${pw+set}&quot; ] &amp;&amp; {</span>
+</span><span class='line'><span class="s1">        log &quot;trying previously entered passphrase...&quot;</span>
+</span><span class='line'><span class="s1">        printf %s &quot;${pw}&quot; | try &quot;$@&quot;</span>
+</span><span class='line'><span class="s1">    } || {</span>
+</span><span class='line'><span class="s1">        pw=$(try /lib/cryptsetup/askpass &quot;Enter passphrase: &quot; &amp;&amp; echo x) \</span>
+</span><span class='line'><span class="s1">            || exit 1</span>
+</span><span class='line'><span class="s1">        pw=${pw%x}</span>
+</span><span class='line'><span class="s1">        printf %s &quot;${pw}&quot; | try &quot;$@&quot; || exit 1</span>
+</span><span class='line'><span class="s1">    }</span>
+</span><span class='line'>
+</span><span class='line'><span class="s1">    log &quot;passphrase accepted; killing passphrase prompt...&quot;</span>
+</span><span class='line'><span class="s1">    for ap in \</span>
+</span><span class='line'><span class="s1">        &quot;/lib/cryptsetup/[a]skpass&quot; \</span>
+</span><span class='line'><span class="s1">        &quot;[a]sk-for-password&quot; \</span>
+</span><span class='line'><span class="s1">        ;</span>
+</span><span class='line'><span class="s1">    do</span>
+</span><span class='line'><span class="s1">        log &quot;  checking for ${ap}...&quot;</span>
+</span><span class='line'><span class="s1">        ap_pid=$(getpid &quot;${ap}&quot;) || exit 1</span>
+</span><span class='line'><span class="s1">        [ -n &quot;${ap_pid}&quot; ] || continue</span>
+</span><span class='line'><span class="s1">        log &quot;    killing PID ${ap_pid}...&quot;</span>
+</span><span class='line'><span class="s1">        try kill &quot;${ap_pid}&quot;</span>
+</span><span class='line'><span class="s1">    done</span>
+</span><span class='line'><span class="s1">done</span>
+</span><span class='line'><span class="s1">&#39;</span>
+</span><span class='line'>
+</span><span class='line'>run_ssh<span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>    <span class="nb">unset </span>forcetty
+</span><span class='line'>    <span class="k">case</span> <span class="nv">$1</span> in -t<span class="o">)</span> <span class="nv">forcetty</span><span class="o">=</span><span class="nv">$1</span><span class="p">;</span> <span class="nb">shift</span><span class="p">;;</span> <span class="k">esac</span>
+</span><span class='line'>    ssh -o <span class="nv">UserKnownHostsFile</span><span class="o">=</span><span class="s2">&quot;${knownhosts}&quot;</span> <span class="se">\</span>
+</span><span class='line'>        -i <span class="s2">&quot;${id}&quot;</span> <span class="se">\</span>
+</span><span class='line'>        <span class="k">${</span><span class="nv">forcetty</span><span class="k">}</span> <span class="se">\</span>
+</span><span class='line'>        root@<span class="s2">&quot;${host}&quot;</span> <span class="s2">&quot;$@&quot;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c"># $1 is the shell command to run; must be &lt; 1024 characters (busybox</span>
+</span><span class='line'><span class="c"># limitation?)</span>
+</span><span class='line'>run_ssh_cmd<span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>    <span class="nb">unset </span>forcetty
+</span><span class='line'>    <span class="k">case</span> <span class="nv">$1</span> in -t<span class="o">)</span> <span class="nv">forcetty</span><span class="o">=</span><span class="nv">$1</span><span class="p">;</span> <span class="nb">shift</span><span class="p">;;</span> <span class="k">esac</span>
+</span><span class='line'>    <span class="nv">sshcmd</span><span class="o">=</span><span class="s1">&#39;sh -c &#39;</span><span class="k">$(</span>shell_quote <span class="s2">&quot;$1&quot;</span><span class="k">)</span><span class="s1">&#39; -&#39;</span>
+</span><span class='line'>    run_ssh <span class="k">${</span><span class="nv">forcetty</span><span class="k">}</span> <span class="s2">&quot;${sshcmd}&quot;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="s2">&quot;${runscript}&quot;</span> <span class="o">||</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">while</span> <span class="nv">IFS</span><span class="o">=</span> <span class="nb">read</span> -r line<span class="p">;</span> <span class="k">do</span>
+</span><span class='line'>        log <span class="s2">&quot;${line}&quot;</span>
+</span><span class='line'>    <span class="k">done</span> <span class="s">&lt;&lt;\EOF</span>
+</span><span class='line'><span class="s">After you are logged in:</span>
+</span><span class='line'><span class="s">  1. use &#39;ps -l&#39; to get cryptsetup&#39;s command-line arguments</span>
+</span><span class='line'><span class="s">  2. run:</span>
+</span><span class='line'><span class="s">         /lib/cryptsetup/askpass &quot;Enter passphrase: &quot; \</span>
+</span><span class='line'><span class="s">             | /sbin/cryptsetup &lt;args go here&gt;</span>
+</span><span class='line'><span class="s">  3. kill &#39;plymouth ask-for-password&#39; or &#39;askpass&#39; as appropriate</span>
+</span><span class='line'><span class="s">  4. log out</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">EOF</span>
+</span><span class='line'>    run_ssh
+</span><span class='line'>    <span class="nb">exit</span> <span class="nv">$?</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>log <span class="s2">&quot;sending script to ${host}...&quot;</span>
+</span><span class='line'><span class="nb">printf</span> %s<span class="se">\\</span>n <span class="s2">&quot;${script}&quot;</span> <span class="p">|</span>
+</span><span class='line'>run_ssh_cmd <span class="s1">&#39;cat &gt;tmp.sh &amp;&amp; chmod +x tmp.sh&#39;</span> <span class="se">\</span>
+</span><span class='line'>    <span class="o">||</span> fatal <span class="s2">&quot;unable to create script&quot;</span>
+</span><span class='line'>
+</span><span class='line'>log <span class="s2">&quot;running script on ${host}...&quot;</span>
+</span><span class='line'>run_ssh_cmd -t <span class="s1">&#39;./tmp.sh&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Use the script like this (enter passphrase when prompted, use the IP address of your own vServer)</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>./unlock-cryptroot -k ~/.ssh/known_hosts.initramfs -i ~/.ssh/id_rsa.hetzner 78.47.247.195
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Should something go wrong you can always boot the Hetzner rescue system and chroot to your vServer:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>cryptsetup luksOpen /dev/vda2 vda2_decrypt
+</span><span class='line'>/etc/init.d/lvm2 start
+</span><span class='line'>mkdir -p /mnt/ubuntu <span class="o">&amp;&amp;</span> <span class="se">\</span>
+</span><span class='line'>mount /dev/vg-encrypted/root /mnt/ubuntu
+</span><span class='line'>mount /dev/vda1 /mnt/ubuntu/boot
+</span><span class='line'>mount -t proc none /mnt/ubuntu/proc
+</span><span class='line'>mount -o <span class="nb">bind</span> /dev /mnt/ubuntu/dev
+</span><span class='line'>mount -o <span class="nb">bind</span> /sys /mnt/ubuntu/sys
+</span><span class='line'><span class="nv">LANG</span><span class="o">=</span>C chroot /mnt/ubuntu /bin/bash
+</span></code></pre></td></tr></table></div></figure>
+
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/2014/11/25/setting-up-nemid-on-hardware-on-ubuntu-14-dot-04-lts/">Setting Up NEMID on Hardware on Ubuntu 14.04 LTS</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-11-25T20:49:12+01:00'><span class='date'><span class='date-month'>Nov</span> <span class='date-day'>25</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>8:49 pm</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>In Denmark we have a public single-sign-on solution, NEMID. To set up NEMID on Hardware (if you have the Gemalto USB token) on Ubuntu 14.04 you have to install the proper token driver and a build environment for building the NEMID driver. These are the required commands (inspired by <a href="http://blog.klavsen.info/content/nemid-p%C3%A5-hardware-guide">this post</a>):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>sudo apt-get install pcsc-tools libccid opensc libpcsclite-dev libboost1.55-dev libboost-system1.55-dev libboost-thread1.55-dev libboost-filesystem1.55-dev pkg-config zlib1g-dev
+</span><span class='line'>sudo apt-get install build-essential
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Then download the driver from NEMID, extract and configure:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>wget https://www.nemid.nu/dk-da/support/aktiver_nemid/aktiver_nemid_paa_hardware/installer_driver/drivers/libgtop11dotnet_2.2.0.12.tar.gz
+</span><span class='line'>tar xpzf libgtop11dotnet_2.2.0.12.tar.gz
+</span><span class='line'><span class="nb">cd </span>libgtop11dotnet-2.2.0.12
+</span><span class='line'>./configure
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Next, make and make install:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>make
+</span><span class='line'>sudo make install
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>You will also need the icedtea-plugin (for web-browsers).</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/2014/11/15/dell-inspiron-1720-will-not-boot-caps-lock-blinking/">Dell Inspiron 1720 Will Not Boot - CAPS Lock Blinking</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-11-15T08:59:27+01:00'><span class='date'><span class='date-month'>Nov</span> <span class='date-day'>15</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>8:59 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Our daughter dropped our old Dell Inspiron 1720 that she uses for kids television. After the fall it would not boot and CAPS lock was blinking. Apparently, the RAM had been unseated, so it was an easy fix. The following <a href="http://forum.notebookreview.com/dell-inspiron-dell-studio/334461-inspiron-1720-help.html#6">procedure</a> worked:</p>
+
+<ul>
+<li>Unplug the AC and battery. Remove both the RAM modules as well.</li>
+<li>Press the power button. This will help to loose all electrical static remains left in it. Hold it for about 10 seconds.</li>
+<li>Then plugin the AC and turn on - it should automatically shut itself off again due to the absence of the RAM modules. However if it doesn&rsquo;t or if it blinks again then just power it down.</li>
+<li>Remove the AC, then re-install both the RAM modules, then press the power button again for the same 10 seconds to loose all discharge especially from the RAM itself. Then plugin only the AC. Power it. See if it works this time round.</li>
+</ul>
+
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04/">Installing R Packages RCurl and XML on Ubuntu 14.04</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-11-03T20:14:16+01:00'><span class='date'><span class='date-month'>Nov</span> <span class='date-day'>3</span><span class='date-suffix'>rd</span>, <span class='date-year'>2014</span></span> <span class='time'>8:14 pm</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Installing R packages <code>RCurl</code> and <code>XML</code> on a fresh Ubuntu 14.04 LTS throws a few errors.</p>
+
+<p><code>RCurl</code> throws the following error:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='splus'><span class='line'>checking <span class="kr">for</span> curl<span class="o">-</span>config... no
+</span><span class='line'>Cannot find curl<span class="o">-</span>config
+</span><span class='line'>ERROR<span class="o">:</span> configuration failed <span class="kr">for</span> package ‘RCurl’
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The fix is easy. Install <code>libcurl4</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>sudo apt-get install libcurl4-openssl-dev
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And then re-install the <code>RCurl</code> package.</p>
+
+<p><code>XML</code> throws another error:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='splus'><span class='line'>checking <span class="kr">for</span> xml2<span class="o">-</span>config... no
+</span><span class='line'>Cannot find xml2<span class="o">-</span>config
+</span><span class='line'>ERROR<span class="o">:</span> configuration failed <span class="kr">for</span> package ‘XML’
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>To fix it install <code>libxml2</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>sudo apt-get install libxml2-dev
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And then re-install the <code>XML</code> package.</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/2014/10/22/setting-up-nginx-for-ssl-slash-tls/">Setting Up Nginx for SSL/TLS</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-10-22T09:27:08+02:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>22</span><span class='date-suffix'>nd</span>, <span class='date-year'>2014</span></span> <span class='time'>9:27 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Before you can setup Nginx for serving pages via SSL/TLS you should <a href="https://blog.wbnet.dk/2014/10/19/obtaining-a-free-one-year-startssl-ssl-slash-tls-certificate/">obtain a certificate</a> (e.g. <code>test.wbnet.dk.crt</code>) and a private key (e.g. <code>test.wbnet.dk.key</code>).</p>
+
+<p>To server pages via SSL/TLS with SSL 3.0 disabled (due to <a href="http://poodlebleed.com/">Poodlebleed</a>) use a Nginx configuration like (adapted from <a href="https://gist.github.com/plentz/6737338">this</a>):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+<span class='line-number'>65</span>
+<span class='line-number'>66</span>
+<span class='line-number'>67</span>
+<span class='line-number'>68</span>
+<span class='line-number'>69</span>
+<span class='line-number'>70</span>
+<span class='line-number'>71</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>server <span class="o">{</span>
+</span><span class='line'>  listen       <span class="m">443</span> ssl<span class="p">;</span>
+</span><span class='line'>  server_name  test.wbnet.dk<span class="p">;</span>
+</span><span class='line'>  ssl on<span class="p">;</span>
+</span><span class='line'>  ssl_certificate      /opt/local/etc/nginx/ssl/wbnet.dk/test.wbnet.dk.crt<span class="p">;</span>
+</span><span class='line'>  ssl_certificate_key  /opt/local/etc/nginx/ssl/wbnet.dk/test.wbnet.dk.key<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># enable session resumption to improve https performance</span>
+</span><span class='line'>  <span class="c"># http://vincent.bernat.im/en/blog/2011-ssl-session-reuse-rfc5077.html</span>
+</span><span class='line'>  ssl_session_cache    shared:SSL:1m<span class="p">;</span>
+</span><span class='line'>  ssl_session_timeout  5m<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># Diffie-Hellman parameter for DHE ciphersuites, recommended 2048 bits</span>
+</span><span class='line'>  <span class="c"># to generate use: openssl dhparam -rand – 2048</span>
+</span><span class='line'>  ssl_dhparam /opt/local/etc/nginx/ssl/dhparam.pem<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># read more here http://tautt.com/best-nginx-configuration-for-security/</span>
+</span><span class='line'>  <span class="c"># don&#39;t send the nginx version number in error pages and Server header</span>
+</span><span class='line'>  server_tokens off<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># config to don&#39;t allow the browser to render the page inside an frame or iframe</span>
+</span><span class='line'>  <span class="c"># and avoid clickjacking http://en.wikipedia.org/wiki/Clickjacking</span>
+</span><span class='line'>  <span class="c"># if you need to allow [i]frames, you can use SAMEORIGIN or even set an uri with</span>
+</span><span class='line'>  <span class="c"># ALLOW-FROM uri</span>
+</span><span class='line'>  <span class="c"># https://developer.mozilla.org/en-US/docs/HTTP/X-Frame-Options</span>
+</span><span class='line'>  add_header X-Frame-Options SAMEORIGIN<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># when serving user-supplied content, include a X-Content-Type-Options: nosniff</span>
+</span><span class='line'>  <span class="c"># header along with the Content-Type: header, to disable content-type sniffing</span>
+</span><span class='line'>  <span class="c"># on some browsers.</span>
+</span><span class='line'>  <span class="c"># https://www.owasp.org/index.php/List_of_useful_HTTP_headers</span>
+</span><span class='line'>  <span class="c"># currently suppoorted in IE &gt; 8</span>
+</span><span class='line'>  <span class="c"># http://blogs.msdn.com/b/ie/archive/2008/09/02/ie8-security-part-vi-beta-2-update.aspx</span>
+</span><span class='line'>  <span class="c"># http://msdn.microsoft.com/en-us/library/ie/gg622941(v=vs.85).aspx</span>
+</span><span class='line'>  <span class="c"># &#39;soon&#39; on Firefox https://bugzilla.mozilla.org/show_bug.cgi?id=471020</span>
+</span><span class='line'>  add_header X-Content-Type-Options nosniff<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># This header enables the Cross-site scripting (XSS) filter built into most</span>
+</span><span class='line'>  <span class="c"># recent web browsers. It&#39;s usually enabled by default anyway, so the role</span>
+</span><span class='line'>  <span class="c"># of this header is to re-enable the filter for this particular website if</span>
+</span><span class='line'>  <span class="c"># it was disabled by the user.</span>
+</span><span class='line'>  <span class="c"># https://www.owasp.org/index.php/List_of_useful_HTTP_headers</span>
+</span><span class='line'>  add_header X-XSS-Protection <span class="s2">&quot;1; mode=block&quot;</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># enables server-side protection from BEAST attacks</span>
+</span><span class='line'>  <span class="c"># http://blog.ivanristic.com/2013/09/is-beast-still-a-threat.html</span>
+</span><span class='line'>  ssl_prefer_server_ciphers on<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># disable SSLv3(enabled by default since nginx 0.8.19) since it&#39;s less secure</span>
+</span><span class='line'>  <span class="c"># then TLS http://en.wikipedia.org/wiki/Secure_Sockets_Layer#SSL_3.0</span>
+</span><span class='line'>  ssl_protocols TLSv1 TLSv1.1 TLSv1.2<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># ciphers chosen for forward secrecy and compatibility</span>
+</span><span class='line'>  <span class="c"># http://blog.ivanristic.com/2013/08/configuring-apache-nginx-and-openssl-for-forward-secrecy.html</span>
+</span><span class='line'>  ssl_ciphers <span class="s1">&#39;ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-RSA-RC4-SHA:ECDHE-ECDSA-RC4-SHA:RC4-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK&#39;</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># enable ocsp stapling (mechanism by which a site can convey certificate</span>
+</span><span class='line'>  <span class="c"># revocation information to visitors in a privacy-preserving, scalable manner)</span>
+</span><span class='line'>  <span class="c"># http://blog.mozilla.org/security/2013/07/29/ocsp-stapling-in-firefox/</span>
+</span><span class='line'>  resolver 8.8.8.8<span class="p">;</span>
+</span><span class='line'>  ssl_stapling on<span class="p">;</span>
+</span><span class='line'>  ssl_trusted_certificate /opt/local/etc/nginx/ssl/wbnet.dk/test.wbnet.dk.crt<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># config to enable HSTS(HTTP Strict Transport Security)</span>
+</span><span class='line'>  <span class="c"># https://developer.mozilla.org/en-US/docs/Security/HTTP_Strict_Transport_Security</span>
+</span><span class='line'>  <span class="c"># to avoid ssl stripping https://en.wikipedia.org/wiki/SSL_stripping#SSL_stripping</span>
+</span><span class='line'>  add_header Strict-Transport-Security <span class="s2">&quot;max-age=31536000; includeSubdomains;&quot;</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c">#... the rest of your configuration</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+</div>
+  
+  
+
+
+    </article>
+  
+  <div class="pagination">
+    
+      <a class="prev" href="/posts/2">&larr; Older</a>
+    
+    <a href="/archives">Blog Archives</a>
+    
+  </div>
+</div>
+<aside class="sidebar">
+  
+    <section>
+  <h1>Kristoffer W. Balling</h1>
+  <p>Geek. Father-of-two. Principal Scientist.</p>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/2015/05/31/fully-encrypted-hetzner-vx6-vserver-with-ubuntu-14-dot-04-lts/">LUKS Encrypted Hetzner VX6 vServer With Ubuntu 14.04 LTS</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/25/setting-up-nemid-on-hardware-on-ubuntu-14-dot-04-lts/">Setting Up NEMID on Hardware on Ubuntu 14.04 LTS</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/15/dell-inspiron-1720-will-not-boot-caps-lock-blinking/">Dell Inspiron 1720 Will Not Boot - CAPS Lock Blinking</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04/">Installing R Packages RCurl and XML on Ubuntu 14.04</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/10/22/setting-up-nginx-for-ssl-slash-tls/">Setting Up Nginx for SSL/TLS</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/kwballing">@kwballing</a> on GitHub
+  
+  <script type="text/javascript">
+    $(document).ready(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'kwballing',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+</aside>
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/80x15.png" /></a> <span xmlns:dct="https://purl.org/dc/terms/" property="dct:title">Balling&#8217;s Bits</span> by <a xmlns:cc="https://creativecommons.org/ns#" href="https://blog.wbnet.dk" property="cc:attributionName" rel="cc:attributionURL">Kristoffer Winther Balling</a> is licensed under a <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.<br />
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'ballingsbits';
+      
+        
+        var disqus_script = 'count.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+<!-- Add fancyBox -->
+<script type="text/javascript" src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript" src="/javascripts/wbnet.js"></script>
+
+
+
+</body>
+</html>

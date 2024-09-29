@@ -1,0 +1,414 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Setting Up Nginx for SSL/TLS - Balling&#8217;s Bits</title>
+  <meta name="author" content="Kristoffer Winther Balling">
+
+  
+  <meta name="description" content="Before you can setup Nginx for serving pages via SSL/TLS you should obtain a certificate (e.g. test.wbnet.dk.crt) and a private key (e.g. test.wbnet. &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="https://blog.wbnet.dk/2014/10/22/setting-up-nginx-for-ssl-slash-tls">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Balling's Bits" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<!-- Add fancyBox -->
+<link rel="stylesheet" href="/stylesheets/jquery.fancybox.css" type="text/css" media="screen" />
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Balling&#8217;s Bits</a></h1>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.wbnet.dk" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/categories/tech">Tech Stuff</a></li>
+  <li><a href="/blog/categories/r">R</a></li>
+  <li><a href="/blog/categories/photo-of-the-day">Photos</a></li>
+  <li><a href="/blog/categories/opskrifter">Opskrifter</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Setting Up Nginx for SSL/TLS</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-10-22T09:27:08+02:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>22</span><span class='date-suffix'>nd</span>, <span class='date-year'>2014</span></span> <span class='time'>9:27 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>Before you can setup Nginx for serving pages via SSL/TLS you should <a href="https://blog.wbnet.dk/2014/10/19/obtaining-a-free-one-year-startssl-ssl-slash-tls-certificate/">obtain a certificate</a> (e.g. <code>test.wbnet.dk.crt</code>) and a private key (e.g. <code>test.wbnet.dk.key</code>).</p>
+
+<p>To server pages via SSL/TLS with SSL 3.0 disabled (due to <a href="http://poodlebleed.com/">Poodlebleed</a>) use a Nginx configuration like (adapted from <a href="https://gist.github.com/plentz/6737338">this</a>):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+<span class='line-number'>65</span>
+<span class='line-number'>66</span>
+<span class='line-number'>67</span>
+<span class='line-number'>68</span>
+<span class='line-number'>69</span>
+<span class='line-number'>70</span>
+<span class='line-number'>71</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>server <span class="o">{</span>
+</span><span class='line'>  listen       <span class="m">443</span> ssl<span class="p">;</span>
+</span><span class='line'>  server_name  test.wbnet.dk<span class="p">;</span>
+</span><span class='line'>  ssl on<span class="p">;</span>
+</span><span class='line'>  ssl_certificate      /opt/local/etc/nginx/ssl/wbnet.dk/test.wbnet.dk.crt<span class="p">;</span>
+</span><span class='line'>  ssl_certificate_key  /opt/local/etc/nginx/ssl/wbnet.dk/test.wbnet.dk.key<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># enable session resumption to improve https performance</span>
+</span><span class='line'>  <span class="c"># http://vincent.bernat.im/en/blog/2011-ssl-session-reuse-rfc5077.html</span>
+</span><span class='line'>  ssl_session_cache    shared:SSL:1m<span class="p">;</span>
+</span><span class='line'>  ssl_session_timeout  5m<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># Diffie-Hellman parameter for DHE ciphersuites, recommended 2048 bits</span>
+</span><span class='line'>  <span class="c"># to generate use: openssl dhparam -rand – 2048</span>
+</span><span class='line'>  ssl_dhparam /opt/local/etc/nginx/ssl/dhparam.pem<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># read more here http://tautt.com/best-nginx-configuration-for-security/</span>
+</span><span class='line'>  <span class="c"># don&#39;t send the nginx version number in error pages and Server header</span>
+</span><span class='line'>  server_tokens off<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># config to don&#39;t allow the browser to render the page inside an frame or iframe</span>
+</span><span class='line'>  <span class="c"># and avoid clickjacking http://en.wikipedia.org/wiki/Clickjacking</span>
+</span><span class='line'>  <span class="c"># if you need to allow [i]frames, you can use SAMEORIGIN or even set an uri with</span>
+</span><span class='line'>  <span class="c"># ALLOW-FROM uri</span>
+</span><span class='line'>  <span class="c"># https://developer.mozilla.org/en-US/docs/HTTP/X-Frame-Options</span>
+</span><span class='line'>  add_header X-Frame-Options SAMEORIGIN<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># when serving user-supplied content, include a X-Content-Type-Options: nosniff</span>
+</span><span class='line'>  <span class="c"># header along with the Content-Type: header, to disable content-type sniffing</span>
+</span><span class='line'>  <span class="c"># on some browsers.</span>
+</span><span class='line'>  <span class="c"># https://www.owasp.org/index.php/List_of_useful_HTTP_headers</span>
+</span><span class='line'>  <span class="c"># currently suppoorted in IE &gt; 8</span>
+</span><span class='line'>  <span class="c"># http://blogs.msdn.com/b/ie/archive/2008/09/02/ie8-security-part-vi-beta-2-update.aspx</span>
+</span><span class='line'>  <span class="c"># http://msdn.microsoft.com/en-us/library/ie/gg622941(v=vs.85).aspx</span>
+</span><span class='line'>  <span class="c"># &#39;soon&#39; on Firefox https://bugzilla.mozilla.org/show_bug.cgi?id=471020</span>
+</span><span class='line'>  add_header X-Content-Type-Options nosniff<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># This header enables the Cross-site scripting (XSS) filter built into most</span>
+</span><span class='line'>  <span class="c"># recent web browsers. It&#39;s usually enabled by default anyway, so the role</span>
+</span><span class='line'>  <span class="c"># of this header is to re-enable the filter for this particular website if</span>
+</span><span class='line'>  <span class="c"># it was disabled by the user.</span>
+</span><span class='line'>  <span class="c"># https://www.owasp.org/index.php/List_of_useful_HTTP_headers</span>
+</span><span class='line'>  add_header X-XSS-Protection <span class="s2">&quot;1; mode=block&quot;</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># enables server-side protection from BEAST attacks</span>
+</span><span class='line'>  <span class="c"># http://blog.ivanristic.com/2013/09/is-beast-still-a-threat.html</span>
+</span><span class='line'>  ssl_prefer_server_ciphers on<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># disable SSLv3(enabled by default since nginx 0.8.19) since it&#39;s less secure</span>
+</span><span class='line'>  <span class="c"># then TLS http://en.wikipedia.org/wiki/Secure_Sockets_Layer#SSL_3.0</span>
+</span><span class='line'>  ssl_protocols TLSv1 TLSv1.1 TLSv1.2<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># ciphers chosen for forward secrecy and compatibility</span>
+</span><span class='line'>  <span class="c"># http://blog.ivanristic.com/2013/08/configuring-apache-nginx-and-openssl-for-forward-secrecy.html</span>
+</span><span class='line'>  ssl_ciphers <span class="s1">&#39;ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-RSA-RC4-SHA:ECDHE-ECDSA-RC4-SHA:RC4-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK&#39;</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># enable ocsp stapling (mechanism by which a site can convey certificate</span>
+</span><span class='line'>  <span class="c"># revocation information to visitors in a privacy-preserving, scalable manner)</span>
+</span><span class='line'>  <span class="c"># http://blog.mozilla.org/security/2013/07/29/ocsp-stapling-in-firefox/</span>
+</span><span class='line'>  resolver 8.8.8.8<span class="p">;</span>
+</span><span class='line'>  ssl_stapling on<span class="p">;</span>
+</span><span class='line'>  ssl_trusted_certificate /opt/local/etc/nginx/ssl/wbnet.dk/test.wbnet.dk.crt<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># config to enable HSTS(HTTP Strict Transport Security)</span>
+</span><span class='line'>  <span class="c"># https://developer.mozilla.org/en-US/docs/Security/HTTP_Strict_Transport_Security</span>
+</span><span class='line'>  <span class="c"># to avoid ssl stripping https://en.wikipedia.org/wiki/SSL_stripping#SSL_stripping</span>
+</span><span class='line'>  add_header Strict-Transport-Security <span class="s2">&quot;max-age=31536000; includeSubdomains;&quot;</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c">#... the rest of your configuration</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Kristoffer Winther Balling</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2014-10-22T09:27:08+02:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>22</span><span class='date-suffix'>nd</span>, <span class='date-year'>2014</span></span> <span class='time'>9:27 am</span></time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/software/'>software</a>, <a class='category' href='/blog/categories/tech/'>tech</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="https://blog.wbnet.dk/2014/10/22/setting-up-nginx-for-ssl-slash-tls/" data-via="kwballing" data-counturl="https://blog.wbnet.dk/2014/10/22/setting-up-nginx-for-ssl-slash-tls/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/2014/10/21/setting-up-nginx-and-php-fpm-in-an-omnios-zone/" title="Previous Post: Setting Up Nginx and PHP-FPM in an OmniOS Zone">&laquo; Setting Up Nginx and PHP-FPM in an OmniOS Zone</a>
+      
+      
+        <a class="basic-alignment right" href="/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04/" title="Next Post: Installing R Packages RCurl and XML on Ubuntu 14.04">Installing R Packages RCurl and XML on Ubuntu 14.04 &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Kristoffer W. Balling</h1>
+  <p>Geek. Father-of-two. Principal Scientist.</p>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/2015/05/31/fully-encrypted-hetzner-vx6-vserver-with-ubuntu-14-dot-04-lts/">LUKS Encrypted Hetzner VX6 vServer With Ubuntu 14.04 LTS</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/25/setting-up-nemid-on-hardware-on-ubuntu-14-dot-04-lts/">Setting Up NEMID on Hardware on Ubuntu 14.04 LTS</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/15/dell-inspiron-1720-will-not-boot-caps-lock-blinking/">Dell Inspiron 1720 Will Not Boot - CAPS Lock Blinking</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04/">Installing R Packages RCurl and XML on Ubuntu 14.04</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/10/22/setting-up-nginx-for-ssl-slash-tls/">Setting Up Nginx for SSL/TLS</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/kwballing">@kwballing</a> on GitHub
+  
+  <script type="text/javascript">
+    $(document).ready(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'kwballing',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/80x15.png" /></a> <span xmlns:dct="https://purl.org/dc/terms/" property="dct:title">Balling&#8217;s Bits</span> by <a xmlns:cc="https://creativecommons.org/ns#" href="https://blog.wbnet.dk" property="cc:attributionName" rel="cc:attributionURL">Kristoffer Winther Balling</a> is licensed under a <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.<br />
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'ballingsbits';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'https://blog.wbnet.dk/2014/10/22/setting-up-nginx-for-ssl-slash-tls/';
+        var disqus_url = 'https://blog.wbnet.dk/2014/10/22/setting-up-nginx-for-ssl-slash-tls/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+<!-- Add fancyBox -->
+<script type="text/javascript" src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript" src="/javascripts/wbnet.js"></script>
+
+
+
+</body>
+</html>

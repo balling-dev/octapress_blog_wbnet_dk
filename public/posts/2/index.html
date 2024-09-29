@@ -1,0 +1,855 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Balling&#8217;s Bits</title>
+  <meta name="author" content="Kristoffer Winther Balling">
+
+  
+  <meta name="description" content="Start by configuring a zone and install the Joyent/SmartOS package manager. Then install Nginx and PHP-FPM (v5.5): 1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14 &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="https://blog.wbnet.dk/posts/2">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Balling's Bits" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<!-- Add fancyBox -->
+<link rel="stylesheet" href="/stylesheets/jquery.fancybox.css" type="text/css" media="screen" />
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Balling&#8217;s Bits</a></h1>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.wbnet.dk" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/categories/tech">Tech Stuff</a></li>
+  <li><a href="/blog/categories/r">R</a></li>
+  <li><a href="/blog/categories/photo-of-the-day">Photos</a></li>
+  <li><a href="/blog/categories/opskrifter">Opskrifter</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div class="blog-index">
+  
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/2014/10/21/setting-up-nginx-and-php-fpm-in-an-omnios-zone/">Setting Up Nginx and PHP-FPM in an OmniOS Zone</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-10-21T22:41:35+02:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>21</span><span class='date-suffix'>st</span>, <span class='date-year'>2014</span></span> <span class='time'>10:41 pm</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Start by configuring a <a href="https://blog.wbnet.dk/2014/10/10/creating-and-cloning-an-omnios-zone/">zone</a> and <a href="https://blog.wbnet.dk/2014/10/10/install-packages-from-joyent-slash-smartos-repository-in-omnios/">install the Joyent/SmartOS package manager</a>.</p>
+
+<p>Then install Nginx and PHP-FPM (v5.5):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>pkgin install nginx php55-fpm
+</span><span class='line'>calculating dependencies... <span class="k">done</span>.
+</span><span class='line'>nothing to upgrade.
+</span><span class='line'><span class="m">7</span> packages to be installed: xmlcatmgr-2.2nb1 perl-5.20.0nb2 pcre-8.35nb1 php-5.5.16 libxml2-2.9.1nb2 nginx-1.6.0 php55-fpm-5.5.16 <span class="o">(</span>28M to download, 105M to install<span class="o">)</span>
+</span><span class='line'>proceed ? <span class="o">[</span>Y/n<span class="o">]</span> y
+</span><span class='line'>downloading packages...
+</span><span class='line'><span class="o">[</span>...<span class="o">]</span>
+</span><span class='line'>nginx-1.6.0: Creating group <span class="sb">``</span>www<span class="s1">&#39;&#39;</span>
+</span><span class='line'>nginx-1.6.0: Creating user <span class="sb">``</span>www<span class="s1">&#39;&#39;</span>
+</span><span class='line'><span class="o">[</span>...<span class="o">]</span>
+</span><span class='line'><span class="o">============================================================================</span>
+</span><span class='line'>This package has SMF support.  You may use svcadm<span class="o">(</span>1M<span class="o">)</span> to <span class="s1">&#39;enable&#39;</span>, <span class="s1">&#39;disable&#39;</span>
+</span><span class='line'>or <span class="s1">&#39;restart&#39;</span> services.  To <span class="nb">enable </span>the instance<span class="o">(</span>s<span class="o">)</span> <span class="k">for</span> this package, run:
+</span><span class='line'>
+</span><span class='line'>        /usr/sbin/svcadm <span class="nb">enable </span>svc:/pkgsrc/nginx:default
+</span><span class='line'>
+</span><span class='line'>Use svcs<span class="o">(</span>1<span class="o">)</span> to check on service status.  See smf<span class="o">(</span>5<span class="o">)</span> <span class="k">for</span> more information.
+</span><span class='line'><span class="o">============================================================================</span>
+</span><span class='line'><span class="o">[</span>...<span class="o">]</span>
+</span><span class='line'>installing php55-fpm-5.5.16...
+</span><span class='line'>php55-fpm-5.5.16: copying /opt/local/share/examples/php/php-fpm.conf to /opt/local/etc/php-fpm.conf
+</span><span class='line'><span class="o">============================================================================</span>
+</span><span class='line'>This package has SMF support.  You may use svcadm<span class="o">(</span>1M<span class="o">)</span> to <span class="s1">&#39;enable&#39;</span>, <span class="s1">&#39;disable&#39;</span>
+</span><span class='line'>or <span class="s1">&#39;restart&#39;</span> services.  To <span class="nb">enable </span>the instance<span class="o">(</span>s<span class="o">)</span> <span class="k">for</span> this package, run:
+</span><span class='line'>
+</span><span class='line'>        /usr/sbin/svcadm <span class="nb">enable </span>svc:/pkgsrc/php-fpm:default
+</span><span class='line'>
+</span><span class='line'>Use svcs<span class="o">(</span>1<span class="o">)</span> to check on service status.  See smf<span class="o">(</span>5<span class="o">)</span> <span class="k">for</span> more information.
+</span><span class='line'><span class="o">============================================================================</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>As seen above a <code>www</code> user and <code>www</code> group is created for Nginx/web content. Start the Nginx web-server:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>svcadm <span class="nb">enable </span>nginx
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Browse to <code>http://ip-address</code>, and you should see the Nginx welcome page.</p>
+
+<p>Here is a minimal Nginx configuration file (<code>/opt/local/etc/nginx/nginx.conf</code>) to enable PHP-FPM:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>user   www  www<span class="p">;</span>
+</span><span class='line'>worker_processes  1<span class="p">;</span>
+</span><span class='line'>events <span class="o">{</span>
+</span><span class='line'>    worker_connections  1024<span class="p">;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>http <span class="o">{</span>
+</span><span class='line'>    include       /opt/local/etc/nginx/mime.types<span class="p">;</span>
+</span><span class='line'>    default_type  application/octet-stream<span class="p">;</span>
+</span><span class='line'>    sendfile        on<span class="p">;</span>
+</span><span class='line'>    keepalive_timeout  65<span class="p">;</span>
+</span><span class='line'>    server <span class="o">{</span>
+</span><span class='line'>        listen       80<span class="p">;</span>
+</span><span class='line'>        server_name  localhost<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>        location / <span class="o">{</span>
+</span><span class='line'>            root   /www<span class="p">;</span>
+</span><span class='line'>            index  index.php index.html index.htm<span class="p">;</span>
+</span><span class='line'>        <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>        error_page   <span class="m">500</span> <span class="m">502</span> <span class="m">503</span> <span class="m">504</span>  /50x.html<span class="p">;</span>
+</span><span class='line'>        <span class="nv">location</span> <span class="o">=</span> /50x.html <span class="o">{</span>
+</span><span class='line'>            root   share/examples/nginx/html<span class="p">;</span>
+</span><span class='line'>        <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="c"># pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000</span>
+</span><span class='line'>        <span class="c">#</span>
+</span><span class='line'>        location ~ <span class="se">\.</span>php<span class="nv">$ </span><span class="o">{</span>
+</span><span class='line'>            root           /www<span class="p">;</span>
+</span><span class='line'>            fastcgi_pass   127.0.0.1:9000<span class="p">;</span>
+</span><span class='line'>            fastcgi_index  index.php<span class="p">;</span>
+</span><span class='line'>            fastcgi_param  SCRIPT_FILENAME  <span class="nv">$document_root$fastcgi_script_name</span><span class="p">;</span>
+</span><span class='line'>            include        /opt/local/etc/nginx/fastcgi_params<span class="p">;</span>
+</span><span class='line'>        <span class="o">}</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create a <code>/www</code> directory to hold html/php files and create an <code>index.php</code> file:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='php'><span class='line'><span class="o">&lt;?</span><span class="nx">php</span>
+</span><span class='line'><span class="nb">phpinfo</span><span class="p">();</span>
+</span><span class='line'><span class="cp">?&gt;</span><span class="x"></span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Then restart Nginx and start PHP-FPM:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>svcadm disable nginx <span class="o">&amp;&amp;</span> svcadm <span class="nb">enable </span>nginx <span class="o">&amp;&amp;</span> svcadm <span class="nb">enable </span>php-fpm
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Browse to <code>http://ip-address</code> to verify that the PHP installation is working and to view PHP information.</p>
+
+<h2>Extensions</h2>
+
+<p>Search for available PHP extensions:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>pkgin search php55-*
+</span><span class='line'>php55-zlib-5.5.16nb1  PHP extension <span class="k">for</span> zlib compression
+</span><span class='line'>php55-zip-5.5.16     PHP extension <span class="k">for</span> ZIP archive handling
+</span><span class='line'>php55-zendoptimizerplus-7.0.0  Zend opcode cache and optimizer <span class="k">for</span> PHP
+</span><span class='line'>php55-yaz-1.1.1nb9   PHP extension <span class="k">for</span> YAZ
+</span><span class='line'>php55-xsl-5.5.16nb1  PHP extension <span class="k">for</span> XSLT functions
+</span><span class='line'>php55-xmlrpc-5.5.16  PHP extension <span class="k">for</span> XML-RPC support
+</span><span class='line'>php55-wddx-5.5.16    PHP extension <span class="k">for</span> WDDX support
+</span><span class='line'>php55-uploadprogress-1.0.1  PHP extension to track progress of a file upload
+</span><span class='line'>php55-tt-rss-fever-plugin-1.2  Fever emulation plugin <span class="k">for</span> Tiny Tiny RSS
+</span><span class='line'>php55-tt-rss-1.12    Tiny Tiny RSS is an open <span class="nb">source </span>web-based RSS feed reader
+</span><span class='line'>php55-tiki6-6.8nb1   Tiki Wiki CMS Groupware web-based application
+</span><span class='line'>php55-tidy-5.5.16    PHP extension <span class="k">for</span> tidy functions
+</span><span class='line'>php55-sysvshm-5.5.16  PHP extension <span class="k">for</span> SysV shared memory support
+</span><span class='line'>php55-sysvsem-5.5.16  PHP extension <span class="k">for</span> SysV semaphore support
+</span><span class='line'>php55-sysvmsg-5.5.16  PHP extension <span class="k">for</span> SysV IPC Message Queues support
+</span><span class='line'>php55-ssh2-0.12      PHP bindings to the functions of libssh2
+</span><span class='line'>php55-ssdeep-1.0.2   PHP extension <span class="k">for</span> ssdeep
+</span><span class='line'><span class="o">[</span>...<span class="o">]</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>To install a PHP extension install it, add the extension to <code>/opt/local/etc/php.ini</code>, and then restart PHP-FPM:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>pkgin -y install php55-gd
+</span><span class='line'>calculating dependencies... <span class="k">done</span>.
+</span><span class='line'>
+</span><span class='line'>nothing to upgrade.
+</span><span class='line'><span class="m">4</span> packages to be installed: png-1.6.12 libjpeg-turbo-1.3.0nb1 freetype2-2.5.3nb1 php55-gd-5.5.16nb1 <span class="o">(</span>2201K to download, 6474K to install<span class="o">)</span>
+</span><span class='line'>
+</span><span class='line'>downloading packages...
+</span><span class='line'><span class="o">[</span>...<span class="o">]</span>
+</span><span class='line'>installing packages...
+</span><span class='line'>installing png-1.6.12...
+</span><span class='line'>installing libjpeg-turbo-1.3.0nb1...
+</span><span class='line'>installing freetype2-2.5.3nb1...
+</span><span class='line'>installing php55-gd-5.5.16nb1...
+</span><span class='line'><span class="o">===========================================================================</span>
+</span><span class='line'><span class="nv">$NetBSD</span>: MESSAGE.module,v 1.2 2004/11/05 21:50:11 jdolecek Exp <span class="err">$</span>
+</span><span class='line'>
+</span><span class='line'>To <span class="nb">enable </span>this module, add the following to /opt/local/etc/php.ini:
+</span><span class='line'>
+</span><span class='line'>    <span class="nv">extension</span><span class="o">=</span>gd.so
+</span><span class='line'>
+</span><span class='line'>and make sure extension_dir points to the dir where gd.so is.
+</span><span class='line'>
+</span><span class='line'>Then restart your PHP5.5-enabled HTTP server to load this module.
+</span><span class='line'><span class="o">===========================================================================</span>
+</span><span class='line'>pkg_install warnings: 0, errors: 0
+</span><span class='line'>reading <span class="nb">local </span>summary...
+</span><span class='line'>processing <span class="nb">local </span>summary...
+</span><span class='line'>updating database: 100%
+</span><span class='line'>marking php55-gd-5.5.16nb1 as non auto-removable
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Restart PHP-FPM</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>svcadm restart php-fpm
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now browse to <code>http://ip-address</code> and check that the extension (gd) is enabled.</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/2014/10/19/obtaining-a-free-one-year-startssl-ssl-slash-tls-certificate/">Obtaining a Free One-Year StartSSL SSL/TLS Certificate</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-10-19T12:51:02+02:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>19</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>12:51 pm</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><a href="https://www.startssl.com/">StartSSL</a> offers free 1-year SSL/TLS certificates. The advantage of having a SSL/TLS certificate signed by a certification authority recognised by most recent browsers (and not your own CA) is that these browsers will not issue all kinds of warnings when they read the certificate; instead the browser will present a nice green padlock next to the https-address.</p>
+
+<p>Before you can issue valid SSL/TLS certificates you must own a domain (e.g. wbnet.dk) and validate that you are the owner of the domain, by being able to receive mails from StartSSL to the postmaster address of the domain. Also, you must validate any mail-addresses (e.g. <a href="&#x6d;&#x61;&#x69;&#108;&#x74;&#x6f;&#x3a;&#116;&#101;&#115;&#116;&#x40;&#119;&#98;&#110;&#x65;&#116;&#x2e;&#100;&#x6b;">&#116;&#x65;&#115;&#x74;&#64;&#119;&#98;&#110;&#x65;&#116;&#x2e;&#100;&#x6b;</a>) you plan to use as the contact person in the certificate(s).</p>
+
+<p>Ars Technica has a nice how-to on <a href="http://arstechnica.com/security/2009/12/how-to-get-set-with-a-secure-sertificate-for-free/">obtaining a free StartSSL SSL/TLS certificate</a>. The following notes are more of a personal reminder on key and certificate request generation.</p>
+
+<p>In this post-Snowden and post-Heartbleed era I would recommend a separate 4096-bit private key <em>per certificate</em>. Generate a password protected 4096-bit private key:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>openssl genrsa -des3 -out test.wbnet.dk.private.key 4096
+</span><span class='line'>Generating RSA private key, <span class="m">4096</span> bit long modulus
+</span><span class='line'>...................................++
+</span><span class='line'>...................................++
+</span><span class='line'>e is <span class="m">65537</span> <span class="o">(</span>0x10001<span class="o">)</span>
+</span><span class='line'>Enter pass phrase <span class="k">for</span> test.wbnet.dk.private.key:
+</span><span class='line'>Verifying - Enter pass phrase <span class="k">for</span> test.wbnet.dk.private.key:
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If you do not want to enter the password every time you start your web-server, create a password-less version of the private key:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>openssl rsa -in test.wbnet.dk.private.key -out test.wbnet.dk.key
+</span><span class='line'>Enter pass phrase <span class="k">for</span> test.wbnet.dk.private.key:
+</span><span class='line'>writing RSA key
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Make sure the password-less key is kept in a safe place (only stored on the web-server) and is only readable by root (chown root.root and chmod 400)</p>
+
+<p>Proceed to create a certificate signing request (csr) (in this case for a 4096-bit certificate using the sha256 algorithm, since sha1 is deprecated) <em>without a challenge password</em> (important information is the Common Name, i.e. the hostname, and the Email Address):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>openssl req -new -newkey rsa:4096 -sha256 <span class="se">\</span>
+</span><span class='line'>  -key test.wbnet.dk.private.key -out test.wbnet.dk.csr
+</span><span class='line'>Enter pass phrase <span class="k">for</span> test.wbnet.dk.private.key:
+</span><span class='line'>You are about to be asked to enter information that will be incorporated
+</span><span class='line'>into your certificate request.
+</span><span class='line'>What you are about to enter is what is called a Distinguished Name or a DN.
+</span><span class='line'>There are quite a few fields but you can leave some blank
+</span><span class='line'>For some fields there will be a default value,
+</span><span class='line'>If you enter <span class="s1">&#39;.&#39;</span>, the field will be left blank.
+</span><span class='line'>-----
+</span><span class='line'>Country Name <span class="o">(</span><span class="m">2</span> letter code<span class="o">)</span> <span class="o">[</span>AU<span class="o">]</span>:DK
+</span><span class='line'>State or Province Name <span class="o">(</span>full name<span class="o">)</span> <span class="o">[</span>Some-State<span class="o">]</span>:Hovedstaden
+</span><span class='line'>Locality Name <span class="o">(</span>eg, city<span class="o">)</span> <span class="o">[]</span>:Roedovre
+</span><span class='line'>Organization Name <span class="o">(</span>eg, company<span class="o">)</span> <span class="o">[</span>Internet Widgits Pty Ltd<span class="o">]</span>:wbnet
+</span><span class='line'>Organizational Unit Name <span class="o">(</span>eg, section<span class="o">)</span> <span class="o">[]</span>:
+</span><span class='line'>Common Name <span class="o">(</span>e.g. server FQDN or YOUR name<span class="o">)</span> <span class="o">[]</span>:test.wbnet.dk
+</span><span class='line'>Email Address <span class="o">[]</span>:postmaster@wbnet.dk
+</span><span class='line'>
+</span><span class='line'>Please enter the following <span class="s1">&#39;extra&#39;</span> attributes
+</span><span class='line'>to be sent with your certificate request
+</span><span class='line'>A challenge password <span class="o">[]</span>:
+</span><span class='line'>An optional company name <span class="o">[]</span>:
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Copy the certificate request:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>root@www:~# cat test.wbnet.dk.csr
+</span><span class='line'>-----BEGIN CERTIFICATE REQUEST-----
+</span><span class='line'>MIIEyDCCArACAQAwgYIxCzAJBgNVBAYTAkRLMRQwEgYDVQQIDAtIb3ZlZHN0YWRl
+</span><span class='line'>bjERMA8GA1UEBwwIUm9lZG92cmUxDjAMBgNVBAoMBXdibmV0MRYwFAYDVQQDDA10
+</span><span class='line'>ZXN0LndibmV0LmRrMSIwIAYJKoZIhvcNAQkBFhNwb3N0bWFzdGVyQHdibmV0LmRr
+</span><span class='line'>MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAtSoD0QpXSIkOoa6WF4Bj
+</span><span class='line'>9Eoewr+BxveSHT0J/fBJTP9jI/XErU1WXLgJUbR444upRV/7RQlmWFKVUcVnHpDo
+</span><span class='line'>Giv+tznsgtNh/Wi6Xj81o4OEhuTz9l2XLkbCvOPBrun6gydDvphDLYKLqHMDX3VL
+</span><span class='line'>HubG87SrCt+8yJ29C8Zppbo4yawEFxJJ+0dgk3gzhYCE9Pfiw0NwPOiGgQ1nSRz9
+</span><span class='line'>Ms0UPzgThQwTpNiAr8xOyjoddmAi8POHexeKnedNk4zXoH6rbJ+P41poEkG0oqsM
+</span><span class='line'>lt5gtiyPaJNXmPww66pX73uJtbo3lhbv9SmN8EO+LmQ3VIMuzaZ+auTJABUzLXPw
+</span><span class='line'>pV/KQlu21/OVvBuCHoGuT0I+u7aU0ppba5XpEjINw9/vjOsoDoYQzS2lJp9zcBeW
+</span><span class='line'>e9aXgZM0YSd88DmDqXWMtePj/yrOSIQ/z7+JRcwjsa8jkE0ssloZqfHxAIALnhNg
+</span><span class='line'>dkmCHrg18Pzg8pX0hLA2IJBc9BVXpr3w0iS/D87cnRmuh96XpbxK6Y8bsNeHQiP7
+</span><span class='line'>strKCYYNt44glpgKgYvAT9C8pqWo+Kl5TPlYwLEssDzZHmuyMwzDx6uQ1CzdKEH6
+</span><span class='line'>KrDzh20hpupon5V+Vk86ar915CWzZ/zcW4yjvZ+pQtkNGJb1nGX874AbT2Ge1lfq
+</span><span class='line'>yJXfRp1rh8+4w9/RLkkvEe8CAwEAAaAAMA0GCSqGSIb3DQEBCwUAA4ICAQCoCeYA
+</span><span class='line'>sXiA4V8VFy5Z2RLQ7ZPc4pIyDMLPtzyx1LIFUEaIhPhhMIpj0GPKwm9QtTiydQh2
+</span><span class='line'>VYkwFB3dAeGwMcTe/UMz6EzvWBIIU2OEwgGid2ZcBUcFUK3pOw0AgVhKPOLNtobC
+</span><span class='line'>ZxVQYkxNEMny6sBaQ+REi+cqJU7UYiYkhtpuX/IcUfuYoN3jqDoTdgsolaVbQ9pq
+</span><span class='line'>/C/19//vpHdzQBh5aWzoD8w6Shd5Bva2B4MflRINiemfnItsYEkA4VwfIGnBms2X
+</span><span class='line'>6LdwTscuC6fQG6CCRu4T35yWiERLCKXowRZkP43tBx70LOP8PG6I6w3jSaMfHgV/
+</span><span class='line'>FbAL9S7uQ1A+2nBtnrPybfL8kZ2LaOkq/65B3VZwJAvlPONUnXKr9Xq6kJSNgA5W
+</span><span class='line'>k2WUhtFA5pVpedYMMX3ucoFTMIDjzcGpFruGLosmncPaJhGzsPbogwh1f+fLB0sq
+</span><span class='line'>Lwr82DqJ3wfPha/pJ35qk9F7pS5CBYArAHtn/F96CytnJCtmOX8vX5D26ODDcVqB
+</span><span class='line'>MPQJzq0fKNoNCqm9jwJxnBYRCk1vjOyGsPGvtGkAFt2AIoHx7e6r0W4TSd1w8g9S
+</span><span class='line'>HaANvpGW2A9k2jGlJ+BqMwRjcG4QD/yLptFKJFwdepWVXC8Umou5oYhjeUCS9byJ
+</span><span class='line'>aX/OTfESaktZ7q27jB9mcpUzqNGgJLG2LwT5fw<span class="o">==</span>
+</span><span class='line'>-----END CERTIFICATE REQUEST-----
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Then go to the <a href="https://www.startssl.com/?app=12">StartSSL control panel</a>. Select <code>Certificates Wizard</code> and select <code>Web Server SSL/TLS Certificate</code> in the drop down and click <code>Continue</code>.</p>
+
+<p><img class="fancybox" src="/images/20141019_startssl_screenshot_1.jpeg" width="600"></p>
+
+<p>On the next page, skip the generation of a private key (<code>Skip</code>). Then paste your Certificate Signing Request into the text box.</p>
+
+<p><img class="fancybox" src="/images/20141019_startssl_screenshot_2.jpeg" width="600"></p>
+
+<p>Click <code>Continue</code> and then <code>Continue</code> again on the next page. Select the proper domain in which the host (test.wbnet.dk) resides (wbnet.dk) and click <code>Continue</code>.</p>
+
+<p><img class="fancybox" src="/images/20141019_startssl_screenshot_3.jpeg" width="600"></p>
+
+<p>On the next page, enter the hostname and click <code>Continue</code>.</p>
+
+<p><img class="fancybox" src="/images/20141019_startssl_screenshot_4.jpeg" width="600"></p>
+
+<p>On the next page click <code>Continue</code> again.</p>
+
+<p>For some hostnames (including test), a manual verification must be made by StartSSL and you will be shown the message below. Otherwise, you will be taken directly to the certificate.</p>
+
+<p><img class="fancybox" src="/images/20141019_startssl_screenshot_5.jpeg" width="600"></p>
+
+<p>After a short period of time (max 3 hours) go to <code>Control Panel</code> and click <code>Retrieve Certificate</code>. Select the proper certificate in the drop down menu:</p>
+
+<p><img class="fancybox" src="/images/20141019_startssl_screenshot_6.jpeg" width="600"></p>
+
+<p>Then click <code>Continue</code>. On the next page your signed certificate is displayed in the text area. Copy this text to a file (<code>test.wbnet.dk.pem</code>) .</p>
+
+<p><img class="fancybox" src="/images/20141019_startssl_screenshot_7.jpeg" width="600"></p>
+
+<p>Next download the <a href="https://www.startssl.com/certs/ca.pem">StartSSL CA root certificate</a> and <a href="https://www.startssl.com/certs/sub.class1.server.ca.pem">class 1 server certificate</a> and concatenate all three certificates into a new certificate:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>wget https://www.startssl.com/certs/ca.pem
+</span><span class='line'>wget https://www.startssl.com/certs/sub.class1.server.ca.pem
+</span><span class='line'><span class="c"># Note, the order of concatenation IS IMPORTANT</span>
+</span><span class='line'>cat test.wbnet.dk.pem sub.class1.server.ca.pem ca.pem &gt; test.wbnet.dk.crt
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now deploy the certificate <code>test.wbnet.dk.crt</code> and the private key <code>test.wbnet.dk.key</code> on your web-server. An example configuration for Nginx is shown below:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="o">[</span>...<span class="o">]</span>
+</span><span class='line'>  server <span class="o">{</span>
+</span><span class='line'>    listen       443<span class="p">;</span>
+</span><span class='line'>    server_name  test.wbnet.dk<span class="p">;</span>
+</span><span class='line'>    ssl on<span class="p">;</span>
+</span><span class='line'>    ssl_certificate      /opt/local/etc/nginx/ssl/wbnet.dk/test.wbnet.dk.crt<span class="p">;</span>
+</span><span class='line'>    ssl_certificate_key  /opt/local/etc/nginx/ssl/wbnet.dk/test.wbnet.dk.key<span class="p">;</span>
+</span><span class='line'>    <span class="o">[</span>...<span class="o">]</span>
+</span><span class='line'>  <span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/2014/10/19/photo-of-the-day/">Photo of the Day: Furnace.</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-10-19T00:00:00+02:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>19</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>12:00 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><img class="fancybox" src="/images/20141019_potd.jpeg" width="600" title="&#34;2014-10-19: Furnace.&#34;" alt="&#34;2014-10-19: Furnace.&#34;"></p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/2014/10/18/photo-of-the-day/">Photo of the Day: Chestnut Yarn Spider.</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-10-18T00:00:00+02:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>18</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>12:00 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><img class="fancybox" src="/images/20141018_potd.jpeg" width="600" title="&#34;2014-10-18: Chestnut Yarn Spider.&#34;" alt="&#34;2014-10-18: Chestnut Yarn Spider.&#34;"></p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header>
+    
+      <h1 class="entry-title"><a href="/2014/10/17/photo-of-the-day/">Photo of the Day: Autumn Is Here. Winter Is Coming.</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-10-17T00:00:00+02:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>17</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>12:00 am</span></time>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p><img class="fancybox" src="/images/20141017_potd.jpeg" width="600" title="&#34;2014-10-17: Autumn is here. Winter is coming.&#34;" alt="&#34;2014-10-17: Autumn is here. Winter is coming.&#34;"></p>
+</div>
+  
+  
+
+
+    </article>
+  
+  <div class="pagination">
+    
+      <a class="prev" href="/posts/3">&larr; Older</a>
+    
+    <a href="/archives">Blog Archives</a>
+    
+    <a class="next" href="/index.html">Newer &rarr;</a>
+    
+  </div>
+</div>
+<aside class="sidebar">
+  
+    <section>
+  <h1>Kristoffer W. Balling</h1>
+  <p>Geek. Father-of-two. Principal Scientist.</p>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/2015/05/31/fully-encrypted-hetzner-vx6-vserver-with-ubuntu-14-dot-04-lts/">LUKS Encrypted Hetzner VX6 vServer With Ubuntu 14.04 LTS</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/25/setting-up-nemid-on-hardware-on-ubuntu-14-dot-04-lts/">Setting Up NEMID on Hardware on Ubuntu 14.04 LTS</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/15/dell-inspiron-1720-will-not-boot-caps-lock-blinking/">Dell Inspiron 1720 Will Not Boot - CAPS Lock Blinking</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04/">Installing R Packages RCurl and XML on Ubuntu 14.04</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/10/22/setting-up-nginx-for-ssl-slash-tls/">Setting Up Nginx for SSL/TLS</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/kwballing">@kwballing</a> on GitHub
+  
+  <script type="text/javascript">
+    $(document).ready(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'kwballing',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+</aside>
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/80x15.png" /></a> <span xmlns:dct="https://purl.org/dc/terms/" property="dct:title">Balling&#8217;s Bits</span> by <a xmlns:cc="https://creativecommons.org/ns#" href="https://blog.wbnet.dk" property="cc:attributionName" rel="cc:attributionURL">Kristoffer Winther Balling</a> is licensed under a <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.<br />
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'ballingsbits';
+      
+        
+        var disqus_script = 'count.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+<!-- Add fancyBox -->
+<script type="text/javascript" src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript" src="/javascripts/wbnet.js"></script>
+
+
+
+</body>
+</html>

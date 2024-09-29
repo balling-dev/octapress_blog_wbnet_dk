@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Hardware | Balling's Bits]]></title>
+  <link href="https://blog.wbnet.dk/blog/categories/hardware/atom.xml" rel="self"/>
+  <link href="https://blog.wbnet.dk/"/>
+  <updated>2015-06-01T11:34:54+02:00</updated>
+  <id>https://blog.wbnet.dk/</id>
+  <author>
+    <name><![CDATA[Kristoffer Winther Balling]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Dell Inspiron 1720 Will Not Boot - CAPS Lock Blinking]]></title>
+    <link href="https://blog.wbnet.dk/2014/11/15/dell-inspiron-1720-will-not-boot-caps-lock-blinking/"/>
+    <updated>2014-11-15T08:59:27+01:00</updated>
+    <id>https://blog.wbnet.dk/2014/11/15/dell-inspiron-1720-will-not-boot-caps-lock-blinking</id>
+    <content type="html"><![CDATA[<p>Our daughter dropped our old Dell Inspiron 1720 that she uses for kids television. After the fall it would not boot and CAPS lock was blinking. Apparently, the RAM had been unseated, so it was an easy fix. The following <a href="http://forum.notebookreview.com/dell-inspiron-dell-studio/334461-inspiron-1720-help.html#6">procedure</a> worked:</p>
+
+<ul>
+<li>Unplug the AC and battery. Remove both the RAM modules as well.</li>
+<li>Press the power button. This will help to loose all electrical static remains left in it. Hold it for about 10 seconds.</li>
+<li>Then plugin the AC and turn on - it should automatically shut itself off again due to the absence of the RAM modules. However if it doesn&rsquo;t or if it blinks again then just power it down.</li>
+<li>Remove the AC, then re-install both the RAM modules, then press the power button again for the same 10 seconds to loose all discharge especially from the RAM itself. Then plugin only the AC. Power it. See if it works this time round.</li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Cisco SG300 and OmniOS Link Aggregation Hash Policy Issues]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/09/cisco-sg300-and-omnios-link-aggregation-hash-policy-issues/"/>
+    <updated>2014-10-09T12:31:21+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/09/cisco-sg300-and-omnios-link-aggregation-hash-policy-issues</id>
+    <content type="html"><![CDATA[<p>Having installed OmniOS on my SuperMicro X9DR7-LN4F I configured a <a href="http://en.wikipedia.org/wiki/Link_aggregation">link aggregation</a> to my <a href="http://www.cisco.com/c/en/us/products/collateral/switches/small-business-smart-switches/data_sheet_c78-610061.html">Cisco SG300-28</a> switch, but found the network connection to be very erratic. It turns out that OmniOS by default uses a <a href="http://en.wikipedia.org/wiki/Link_aggregation">L4 LACP hash policy</a> (piping by mac-address, IP-address and TCP/UDP port) whereas Cisco SG300 to my knowledge (i.e. the SG300 administration interface) only supports L3 LACP hash policy (mac-address, and IP-address). In other words, what traffic goes down what pipe was not in sync between OmniOS and the switch.</p>
+
+<p>The fix is simple, specify the hash policy when creating the link aggregation (aggr0):</p>
+
+<pre><code class="bash">dladm create-aggr -P L3 -d igb0 -d igb1 -d igb2 -d igb3 aggr0
+</code></pre>
+
+<p>or update an existing link aggregation (aggr0) using:</p>
+
+<pre><code class="bash">dladm modify-aggr -P L3 aggr0
+</code></pre>
+
+<p>That stabilized network connections.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Nexus 7 (2013) LTE Error While Searching for Networks]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/08/nexus-7-2013-lte-error-while-searching-for-networks/"/>
+    <updated>2014-10-08T20:51:31+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/08/nexus-7-2013-lte-error-while-searching-for-networks</id>
+    <content type="html"><![CDATA[<p><img class="right" src="/images/nexus7_lte_error_while_searching_for_network.jpeg" width="300" title="Error While Searching for Networks" > Back in September my Nexus 7 LTE (2013 model) tablet lost the ability to connect to cellular networks out of the blue while running Android 4.4.3. My network is 3 (in Denmark) and the SIM card works in an iPad. So this is specific for the Nexus 7 LTE. When I browse to: <code>Settings-&gt;More...-&gt;Mobile Networks-&gt;Network Operators-&gt;Search Networks</code> all I get is &ldquo;Error while searching for networks&rdquo;.</p>
+
+<p><img class="right" src="/images/nexus7_lte_cannot_connect_to_network_right_now.jpeg" width="470" title="Can&rsquo;t connect to this network right now. Try again later" > Selecting <code>Choose automatically</code> results in &ldquo;Can&rsquo;t connect to this network right now. Try again later.&rdquo;</p>
+
+<p><a href="https://www.google.com/search?q=nexus+7+lte+error+searching+for+network">A lot of people have the same issues with lost cellular connectivity of Nexus 7 LTE tablets</a>.</p>
+
+<p>I have tried the following remedies (none of them worked):</p>
+
+<ul>
+<li>Factory reset <img class="right" src="/images/nexus7_lte_airplane_mode_disabled.jpeg" width="200" title="No Airplane Mode" ></li>
+<li>Downgrade to Android 4.4.2 (KOT49H)
+using the <a href="https://developers.google.com/android/nexus/images?hl=ja">official google factory image (razorg)</a></li>
+<li>Downgrade to Android 4.3 (JLS36C), using official image</li>
+<li>Re-install Android 4.4.3 (KTU84L) and perform official OTA update (via wifi) to Android 4.4.4</li>
+<li>Airplane mode enable/disable</li>
+</ul>
+
+
+<p><img class="right" src="/images/nexus7_lte_airplane_mode_enabled.jpeg" width="200" title="Airplane Mode" > The airplane switch is somewhat interesting. When airplane mode mode is <strong>off</strong>, the cellular status reads &ldquo;No Service&rdquo;, but when airplane mode is <strong>on</strong> it reads 3 (my network provider). So the Nexus 7 LTE can at least read my SIM card, how else would it know I am using 3?</p>
+
+<p>According to this <a href="http://code.google.com/p/android/issues/detail?id=73236#c13">thread</a> Google was aware of the issue well in advance of the release of Android 4.4.4 for the LTE model, but did not fix it. That is really lousy customer service by Google and Asus. According to Google tech (in the same thread), we are told to wait for Android L which <em>might</em> be released for the Nexus 7 (2013) model and <em>might</em> fix the issue.</p>
+
+<p>I filed an RMA (return merchandise authorization) with <a href="http://www.mediamarkt.de/">Media Markt</a> today and they will do a repair or replacement of my Nexus 7 LTE under warranty (less than a year old). Now that is good customer service.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[SuperMicro X9DR7-LN4F SATA Issues When Using On-board LSI SAS2308 Controller]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/07/supermicro-x9dr7-ln4f-sata-issues-when-using-on-board-lsi-sas2308-controller/"/>
+    <updated>2014-10-07T16:31:03+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/07/supermicro-x9dr7-ln4f-sata-issues-when-using-on-board-lsi-sas2308-controller</id>
+    <content type="html"><![CDATA[<p>One of the reasons I bought a <a href="http://www.supermicro.com/products/motherboard/xeon/c600/X9DR7-LN4F.cfm">SuperMicro X9DR7-LN4F</a> for my <a href="https://blog.wbnet.dk/2014/10/06/all-in-one-server-hardware/">All-in-One server</a> was the ability to use a total of 18 drives with the on-board controllers:</p>
+
+<ul>
+<li>8 disks on the LSI SAS2308 (SAS2)</li>
+<li>6 drives on the Intel C602 (Port 0-5, two SATA3 and four SATA2)</li>
+<li>4 drives on the SCU (SATA2).</li>
+</ul>
+
+
+<p>Unfortunately this turned out not to work (running BIOS v3.0a from 10-Sep-2013, latest available at the time of writing). Thomas Krenn <a href="http://www.thomas-krenn.com/en/wiki/Supermicro_X9DR7-LN4F_Motherboard">mentions issues</a> with simultaneous use of the 4 SCU SATA2 ports and the SAS2308 controller. In my experience <strong>only</strong> the 2 SATA3 ports can be used when the SAS-2308 is operational rendering this this motherboard capable of supporting only 10 disks rather than 18. <strong>I would have liked to have that information before the purchase!</strong></p>
+
+<p>I ended up buying an <a href="http://www.lsi.com/products/host-bus-adapters/pages/lsi-sas-9201-16i.aspx">LSI SAS 9201-16i HBA</a> ahead of time.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Preparing Samsung HD204UI as 4K Sector Drive for Use in ZFS Zpool]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/07/preparing-samsung-hd204ui-as-4k-sector-drive-for-use-in-zfs-zpool/"/>
+    <updated>2014-10-07T16:22:20+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/07/preparing-samsung-hd204ui-as-4k-sector-drive-for-use-in-zfs-zpool</id>
+    <content type="html"><![CDATA[<p>I had six <a href="http://www.storagereview.com/samsung_spinpoint_f4eg_review_hd204ui">Samsung HD204UI</a> drives from a previous NAS that I wanted to use in a zpool (two vdevs each consisting of a
+ <a href="http://constantin.glez.de/blog/2010/01/home-server-raid-greed-and-why-mirroring-still-best">three-way mirror</a>). The HD204UI drives <em>are</em> advanced format drives with 4k sectors, but they report a 512 byte sector size to the OS. This can be overcome in zfs by forcing 4k size in <code>sd.conf</code> and using <code>ashift=12</code> when creating the zpool.</p>
+
+<p>Before creating a zpool the drives must be prepared so that zfs and disk sectors are aligned.
+The following approach is gleaned from the <a href="http://wiki.illumos.org/display/illumos/ZFS+and+Advanced+Format+disks">illumos wiki entry on the subject by George Wilson</a>.</p>
+
+<p>To find the device names of all disks use the <code>format</code> command (use <code>Ctrl-C</code> to exit):</p>
+
+<pre><code class="bash">root@srv01:~# format
+Searching for disks...done
+...
+AVAILABLE DISK SELECTIONS:
+...
+       2. c3t50024E900496C9E7d0 &lt;ATA-SAMSUNG HD204UI-0001-1.82TB&gt;
+          /scsi_vhci/disk@g50024e900496c9e7
+...
+Specify disk (enter its number):
+</code></pre>
+
+<p>To use 4K sectors the partition table must be changed to a GUID partition table (GPT). Use the <code>mklabel gpt</code> command to change partition table (this will destroy all data on the disk):</p>
+
+<pre><code class="bash">parted /dev/rdsk/c3t50024E900496C9E7d0 mklabel gpt
+</code></pre>
+
+<p>To align sectors create a partition which starts at sector 256 (256 sectors of 512 bytes is 131072 bytes or 32 4K sectors, i.e. aligned). The size of the partition should be total number of disk sectors minus 16640 sectors (256 sectors for start + 16384 sectors for down-sizing to allow new disks of identical size to have slightly different geometry and still be used as replacement for the drive we are partitioning). 3907029168 sectors minus 16640 sectors equals 3907012528 sectors:</p>
+
+<pre><code class="bash">parted /dev/rdsk/c3t5000CCA23DC00778d0p0 uni s mkpart zfs solaris 256 3907012528
+</code></pre>
+
+<p>The disk is now ready to use in a zpool.</p>
+]]></content>
+  </entry>
+  
+</feed>

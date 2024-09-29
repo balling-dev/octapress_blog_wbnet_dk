@@ -1,0 +1,2467 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Balling's Bits]]></title>
+  <link href="https://blog.wbnet.dk/atom.xml" rel="self"/>
+  <link href="https://blog.wbnet.dk/"/>
+  <updated>2015-06-01T11:34:54+02:00</updated>
+  <id>https://blog.wbnet.dk/</id>
+  <author>
+    <name><![CDATA[Kristoffer Winther Balling]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[LUKS Encrypted Hetzner VX6 vServer With Ubuntu 14.04 LTS]]></title>
+    <link href="https://blog.wbnet.dk/2015/05/31/fully-encrypted-hetzner-vx6-vserver-with-ubuntu-14-dot-04-lts/"/>
+    <updated>2015-05-31T09:05:54+02:00</updated>
+    <id>https://blog.wbnet.dk/2015/05/31/fully-encrypted-hetzner-vx6-vserver-with-ubuntu-14-dot-04-lts</id>
+    <content type="html"><![CDATA[<p>This is a guide to installing Ubuntu 14.04 LTS on an <a href="https://www.hetzner.de/">Hetzner</a> VX6 vServer using LUKS encryption of the root partition. The guide is inspiried by blog posts of <a href="https://www.dont-panic.cc/capi/2012/10/24/fully-encrypted-vserver-with-ubuntu-12-04/">Martin Carpella</a> and <a href="https://kiza.eu/journal/entry/697">Oliver Feiler</a>. On reboot you will be able to log in via ssh to provide the password for the LUKS partition (using dropbear and busybox).</p>
+
+<p>As pointed out by Martin Carpella it may sound stupid to encrypt the disk of a virtual machine as the private key can be pulled from memory by the host (i.e. Hetzner). However, encrypting all data on the disk protects it in case you cancel the vServer, or the vServer gets moved to a new host, or a failed disk is returned to the manufacturer or discarded etc. So it is more a matter of protecting the data if the VM is cancelled/offline rather than online. If you do not want Hetzner to be able to pull the private key, go for something other than a virtual machine (e.g. a root server).</p>
+
+<p>Anyway, here we go!</p>
+
+<p>When signing up for the vServer select the Hetzner Ubuntu 14.04 LTS 64-bit minimal-install image. Once the server is setup log in via SSH and make backups of these files:</p>
+
+<ul>
+<li><code>/etc/hostname</code></li>
+<li><code>/etc/hosts</code></li>
+<li><code>/etc/resolv.conf</code></li>
+<li><code>/etc/network/interfaces</code></li>
+</ul>
+
+
+<p>Log into the Hetzner robot interface and select 64-bit Linux rescue system, take note of the password for rescue system ssh login displayed on the page. Reboot your vServer in rescue mode and log in.</p>
+
+<p>Setup disk partitions using <code>fdisk</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>fdisk /dev/vda
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create a boot partition of 256 MB (<code>/dev/vda1</code>) and a root partition of the remaining free space (<code>/dev/vda2</code>). Mark the boot partition as bootable. My partition table looks like this:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>Disk /dev/vda: 26.8 GB, <span class="m">26843545600</span> bytes
+</span><span class='line'><span class="m">255</span> heads, <span class="m">63</span> sectors/track, <span class="m">3263</span> cylinders, total <span class="m">52428800</span> sectors
+</span><span class='line'><span class="nv">Units</span> <span class="o">=</span> sectors of <span class="m">1</span> * <span class="nv">512</span> <span class="o">=</span> <span class="m">512</span> bytes
+</span><span class='line'>Sector size <span class="o">(</span>logical/physical<span class="o">)</span>: <span class="m">512</span> bytes / <span class="m">512</span> bytes
+</span><span class='line'>I/O size <span class="o">(</span>minimum/optimal<span class="o">)</span>: <span class="m">512</span> bytes / <span class="m">512</span> bytes
+</span><span class='line'>Disk identifier: 0x00044f0a
+</span><span class='line'>
+</span><span class='line'>   Device Boot      Start         End      Blocks   Id  System
+</span><span class='line'>/dev/vda1   *        <span class="m">2048</span>      <span class="m">526335</span>      <span class="m">262144</span>   <span class="m">83</span>  Linux
+</span><span class='line'>/dev/vda2          <span class="m">526336</span>    <span class="m">52428799</span>    <span class="m">25951232</span>   <span class="m">83</span>  Linux
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create the encrypted partition (enter passphrase when prompted):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>cryptsetup --cipher aes-xts-plain64 -s <span class="m">512</span> --iter-time <span class="m">5000</span> luksFormat /dev/vda2
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Decrypt the partition and create a volume group and two logical volumes (root and swap):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>cryptsetup luksOpen /dev/vda2 vda2_decrypt
+</span><span class='line'>vgcreate vg-encrypted /dev/mapper/vda2_decrypt
+</span><span class='line'>lvcreate -L 2G -n swap vg-encrypted
+</span><span class='line'>lvcreate -L 22G -n root vg-encrypted
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create file systems:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>mkfs.ext2 /dev/vda1
+</span><span class='line'>mkswap /dev/vg-encrypted/swap
+</span><span class='line'>mkfs.ext4 /dev/vg-encrypted/root
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Record the UUIDs of the partitions:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>blkid /dev/vda1 /dev/vda2 /dev/vg-encrypted/root /dev/vg-encrypted/swap
+</span><span class='line'><span class="c"># These are my UUIDs</span>
+</span><span class='line'>/dev/vda1: <span class="nv">UUID</span><span class="o">=</span><span class="s2">&quot;409938b1-7244-4c34-a665-8f086dd1c5f9&quot;</span> <span class="nv">TYPE</span><span class="o">=</span><span class="s2">&quot;ext2&quot;</span>
+</span><span class='line'>/dev/vda2: <span class="nv">UUID</span><span class="o">=</span><span class="s2">&quot;b360acf3-b392-417f-bc08-90f378a5d26b&quot;</span> <span class="nv">TYPE</span><span class="o">=</span><span class="s2">&quot;crypto_LUKS&quot;</span>
+</span><span class='line'>/dev/vg-encrypted/root: <span class="nv">UUID</span><span class="o">=</span><span class="s2">&quot;efc68b96-de3d-4cb9-a884-127dca8c97d5&quot;</span> <span class="nv">TYPE</span><span class="o">=</span><span class="s2">&quot;ext4&quot;</span>
+</span><span class='line'>/dev/vg-encrypted/swap: <span class="nv">UUID</span><span class="o">=</span><span class="s2">&quot;6556fbea-0e34-4f4e-92cc-c18b3ccb0ece&quot;</span> <span class="nv">TYPE</span><span class="o">=</span><span class="s2">&quot;swap&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>MAke a chroot directory (<code>/mnt/ubuntu</code>) and mount volumes:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>mkdir -p /mnt/ubuntu <span class="o">&amp;&amp;</span> <span class="se">\</span>
+</span><span class='line'>mount /dev/vg-encrypted/root /mnt/ubuntu <span class="o">&amp;&amp;</span> <span class="se">\</span>
+</span><span class='line'>mkdir /mnt/ubuntu/boot <span class="o">&amp;&amp;</span> <span class="se">\</span>
+</span><span class='line'>mount /dev/vda1 /mnt/ubuntu/boot
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Download and install the latest debootstrap, then debootstrap 64-bit Ubuntu 14.04 LTS to the chroot directory:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">cd</span>
+</span><span class='line'>wget <span class="s2">&quot;http://archive.ubuntu.com/ubuntu/pool/main/d/debootstrap/debootstrap_1.0.67_all.deb&quot;</span>
+</span><span class='line'>dpkg --install debootstrap_1.0.67_all.deb
+</span><span class='line'>debootstrap --arch amd64 trusty /mnt/ubuntu http://archive.ubuntu.com/ubuntu/
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Mount <code>proc</code>, <code>dev</code> and <code>sys</code> and chroot into the bootstraped Ubuntu system:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>mount -t proc none /mnt/ubuntu/proc
+</span><span class='line'>mount -o <span class="nb">bind</span> /dev /mnt/ubuntu/dev
+</span><span class='line'>mount -o <span class="nb">bind</span> /sys /mnt/ubuntu/sys
+</span><span class='line'>cp /etc/resolv.conf /mnt/ubuntu/etc/
+</span><span class='line'><span class="nv">LANG</span><span class="o">=</span>C chroot /mnt/ubuntu /bin/bash
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create <code>/etc/fstab</code> (use your own UUIDs from above):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">echo</span> <span class="s2">&quot;</span>
+</span><span class='line'><span class="s2">UUID=efc68b96-de3d-4cb9-a884-127dca8c97d5 / ext4 defaults,noatime 0 0</span>
+</span><span class='line'><span class="s2">UUID=409938b1-7244-4c34-a665-8f086dd1c5f9 /boot ext2 defaults,relatime 0 1</span>
+</span><span class='line'><span class="s2">UUID=6556fbea-0e34-4f4e-92cc-c18b3ccb0ece none swap sw 0 0</span>
+</span><span class='line'><span class="s2">proc /proc proc defaults 0 0</span>
+</span><span class='line'><span class="s2">sys /sys sysfs defaults 0 0</span>
+</span><span class='line'><span class="s2">&quot;</span> &gt; /etc/fstab
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Copy hostname to <code>/etc/hostname</code> (use the hostname you recorded above):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">echo</span> <span class="s2">&quot;Ubuntu-1404-trusty-64-minimal&quot;</span> &gt; /etc/hostname
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create <code>/etc/hosts</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">echo</span> <span class="s2">&quot;127.0.0.1 localhost</span>
+</span><span class='line'><span class="s2">127.0.1.1 Ubuntu-1404-trusty-64-minimal</span>
+</span><span class='line'><span class="s2">::1 localhost ip6-localhost ip6-loopback</span>
+</span><span class='line'><span class="s2">fe00::0 ip6-localnet</span>
+</span><span class='line'><span class="s2">ff00::0 ip6-mcastprefix</span>
+</span><span class='line'><span class="s2">ff02::1 ip6-allnodes</span>
+</span><span class='line'><span class="s2">ff02::2 ip6-allrouters</span>
+</span><span class='line'><span class="s2">&quot;</span> &gt; /etc/hosts
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create <code>/etc/network/interfaces</code> (using your own IP and gateway information as recorded above):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">echo</span> <span class="s2">&quot;</span>
+</span><span class='line'><span class="s2">auto lo</span>
+</span><span class='line'><span class="s2">iface lo inet loopback</span>
+</span><span class='line'>
+</span><span class='line'><span class="s2"># device: eth0</span>
+</span><span class='line'><span class="s2">auto  eth0</span>
+</span><span class='line'><span class="s2">iface eth0 inet static</span>
+</span><span class='line'><span class="s2">  address   78.47.247.195</span>
+</span><span class='line'><span class="s2">  broadcast 78.47.247.207</span>
+</span><span class='line'><span class="s2">  netmask   255.255.255.240</span>
+</span><span class='line'><span class="s2">  gateway   78.47.247.193</span>
+</span><span class='line'><span class="s2">  # default route to access subnet</span>
+</span><span class='line'><span class="s2">  up route add -net 78.47.247.192 netmask 255.255.255.240 gw 78.47.247.193 eth0</span>
+</span><span class='line'>
+</span><span class='line'><span class="s2">iface eth0 inet6 static</span>
+</span><span class='line'><span class="s2">  address 2a01:4f8:d16:a8f::2</span>
+</span><span class='line'><span class="s2">  netmask 64</span>
+</span><span class='line'><span class="s2">  gateway 2a01:4f8:d16:a8f::1</span>
+</span><span class='line'><span class="s2">&quot;</span> &gt; /etc/network/interfaces
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Setup <code>apt</code> to use Hetzner mirrors:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">echo</span> <span class="s2">&quot;</span>
+</span><span class='line'><span class="s2"># Packages and Updates from the Hetzner Ubuntu Mirror</span>
+</span><span class='line'><span class="s2">deb ftp://mirror.hetzner.de/ubuntu/packages trusty main restricted universe multiverse</span>
+</span><span class='line'><span class="s2">deb ftp://mirror.hetzner.de/ubuntu/packages trusty-updates main restricted universe multiverse</span>
+</span><span class='line'><span class="s2">deb ftp://mirror.hetzner.de/ubuntu/security trusty-security main restricted universe multiverse</span>
+</span><span class='line'>
+</span><span class='line'><span class="s2">deb http://archive.ubuntu.com/ubuntu trusty main</span>
+</span><span class='line'><span class="s2">deb-src http://archive.ubuntu.com/ubuntu trusty main</span>
+</span><span class='line'>
+</span><span class='line'><span class="s2">deb http://security.ubuntu.com/ubuntu trusty-security main</span>
+</span><span class='line'><span class="s2">deb-src http://security.ubuntu.com/ubuntu trusty-security main</span>
+</span><span class='line'><span class="s2">&quot;</span> &gt; /etc/apt/sources.list
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create <code>/etc/crypttab</code> (use your own UUIDs from above):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">echo</span> <span class="s2">&quot;# &lt;target name&gt; &lt;source device&gt; &lt;key file&gt; &lt;options&gt;</span>
+</span><span class='line'><span class="s2">vda2_decrypt UUID=b360acf3-b392-417f-bc08-90f378a5d26b none luks</span>
+</span><span class='line'><span class="s2">&quot;</span> &gt; /etc/crypttab
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Update packages and select time zone:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>apt-get update
+</span><span class='line'>dpkg-reconfigure tzdata
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Install essential packages (install <code>grub</code> to <code>/dev/vda</code> when prompted):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>apt-get install aptitude openssh-server linux-image-generic cryptsetup lvm2 busybox dropbear
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Extract the dropbear public key and add it to authorized_keys file:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>dropbearkey -y -f /etc/initramfs-tools/root/.ssh/id_rsa.dropbear <span class="p">|</span> <span class="se">\</span>
+</span><span class='line'>        grep <span class="s2">&quot;^ssh-rsa &quot;</span> &gt; /etc/initramfs-tools/root/.ssh/id_rsa.pub
+</span><span class='line'>cat /etc/initramfs-tools/root/.ssh/id_rsa.pub &gt;&gt; /etc/initramfs-tools/root/.ssh/authorized_keys
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Save the dropbear private key to your own computer as <code>~/.ssh/id_rsa.hetzner</code> (remember to chmod 600 the file):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>cat /etc/initramfs-tools/root/.ssh/id_rsa
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Add modules to system and initramfs:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">echo</span> <span class="s2">&quot;dm-crypt&quot;</span> &gt;&gt; /etc/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;aes&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;aes_i586&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;aes_x86_64&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;aes_generic&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;dm-crypt&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;dm-mod&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;sha256&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;sha256_generic&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;lrw&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;xts&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;crypto_blkcipher&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;gf128mul&quot;</span> &gt;&gt; /etc/initramfs-tools/modules
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>IMPORTANT: remove or comment out (#) the grub hidden settings and the default cmd-line, and set the time out to 1 sec (in <code>/etc/defaults/grub</code>):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="c">#GRUB_HIDDEN_TIMEOUT=0</span>
+</span><span class='line'><span class="c">#GRUB_HIDDEN_TIMEOUT_QUIET=true</span>
+</span><span class='line'><span class="nv">GRUB_TIMEOUT</span><span class="o">=</span>1
+</span><span class='line'><span class="nv">GRUB_DISTRIBUTOR</span><span class="o">=</span><span class="sb">`</span>lsb_release -i -s 2&gt; /dev/null <span class="o">||</span> <span class="nb">echo </span>Debian<span class="sb">`</span>
+</span><span class='line'><span class="c">#GRUB_CMDLINE_LINUX_DEFAULT=&quot;quiet splash&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Update initramfs and grub:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>update-initramfs -c -k all
+</span><span class='line'>update-grub
+</span><span class='line'>grub-install /dev/vda
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Check that crytpsetup is in the initramfs sbin:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">cd</span>
+</span><span class='line'>zcat /initrd.img <span class="p">|</span> cpio -i -d
+</span><span class='line'>ls sbin
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Set root password:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>passwd
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Add a user:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>adduser akwb
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Make added user an admin:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>addgroup --system admin
+</span><span class='line'>adduser akwb admin
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If you experience problems with IPv6 you may need to add the following to <code>/etc/rc.local</code> (before exit 0):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>/sbin/ifdown --force eth0
+</span><span class='line'>/sbin/ifup --force eth0
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Exit the chroot, unmount and reboot:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">exit</span>
+</span><span class='line'>umount /mnt/ubuntu/boot
+</span><span class='line'>umount /mnt/ubuntu/proc
+</span><span class='line'>umount /mnt/ubuntu/sys
+</span><span class='line'>umount /mnt/ubuntu/dev
+</span><span class='line'>umount /mnt/ubuntu
+</span><span class='line'>sync
+</span><span class='line'>reboot
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>To enter the LUKS passphrase upon boot, first save the following <a href="https://bugs.launchpad.net/ubuntu/+source/cryptsetup/+bug/595648/+attachment/4269370/+files/unlock-cryptroot">script</a> as <code>unlock-cryptroot</code> on your computer (not the vServer) and make it executable (<code>chmod +x unlock-cryptroot</code>):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+<span class='line-number'>65</span>
+<span class='line-number'>66</span>
+<span class='line-number'>67</span>
+<span class='line-number'>68</span>
+<span class='line-number'>69</span>
+<span class='line-number'>70</span>
+<span class='line-number'>71</span>
+<span class='line-number'>72</span>
+<span class='line-number'>73</span>
+<span class='line-number'>74</span>
+<span class='line-number'>75</span>
+<span class='line-number'>76</span>
+<span class='line-number'>77</span>
+<span class='line-number'>78</span>
+<span class='line-number'>79</span>
+<span class='line-number'>80</span>
+<span class='line-number'>81</span>
+<span class='line-number'>82</span>
+<span class='line-number'>83</span>
+<span class='line-number'>84</span>
+<span class='line-number'>85</span>
+<span class='line-number'>86</span>
+<span class='line-number'>87</span>
+<span class='line-number'>88</span>
+<span class='line-number'>89</span>
+<span class='line-number'>90</span>
+<span class='line-number'>91</span>
+<span class='line-number'>92</span>
+<span class='line-number'>93</span>
+<span class='line-number'>94</span>
+<span class='line-number'>95</span>
+<span class='line-number'>96</span>
+<span class='line-number'>97</span>
+<span class='line-number'>98</span>
+<span class='line-number'>99</span>
+<span class='line-number'>100</span>
+<span class='line-number'>101</span>
+<span class='line-number'>102</span>
+<span class='line-number'>103</span>
+<span class='line-number'>104</span>
+<span class='line-number'>105</span>
+<span class='line-number'>106</span>
+<span class='line-number'>107</span>
+<span class='line-number'>108</span>
+<span class='line-number'>109</span>
+<span class='line-number'>110</span>
+<span class='line-number'>111</span>
+<span class='line-number'>112</span>
+<span class='line-number'>113</span>
+<span class='line-number'>114</span>
+<span class='line-number'>115</span>
+<span class='line-number'>116</span>
+<span class='line-number'>117</span>
+<span class='line-number'>118</span>
+<span class='line-number'>119</span>
+<span class='line-number'>120</span>
+<span class='line-number'>121</span>
+<span class='line-number'>122</span>
+<span class='line-number'>123</span>
+<span class='line-number'>124</span>
+<span class='line-number'>125</span>
+<span class='line-number'>126</span>
+<span class='line-number'>127</span>
+<span class='line-number'>128</span>
+<span class='line-number'>129</span>
+<span class='line-number'>130</span>
+<span class='line-number'>131</span>
+<span class='line-number'>132</span>
+<span class='line-number'>133</span>
+<span class='line-number'>134</span>
+<span class='line-number'>135</span>
+<span class='line-number'>136</span>
+<span class='line-number'>137</span>
+<span class='line-number'>138</span>
+<span class='line-number'>139</span>
+<span class='line-number'>140</span>
+<span class='line-number'>141</span>
+<span class='line-number'>142</span>
+<span class='line-number'>143</span>
+<span class='line-number'>144</span>
+<span class='line-number'>145</span>
+<span class='line-number'>146</span>
+<span class='line-number'>147</span>
+<span class='line-number'>148</span>
+<span class='line-number'>149</span>
+<span class='line-number'>150</span>
+<span class='line-number'>151</span>
+<span class='line-number'>152</span>
+<span class='line-number'>153</span>
+<span class='line-number'>154</span>
+<span class='line-number'>155</span>
+<span class='line-number'>156</span>
+<span class='line-number'>157</span>
+<span class='line-number'>158</span>
+<span class='line-number'>159</span>
+<span class='line-number'>160</span>
+<span class='line-number'>161</span>
+<span class='line-number'>162</span>
+<span class='line-number'>163</span>
+<span class='line-number'>164</span>
+<span class='line-number'>165</span>
+<span class='line-number'>166</span>
+<span class='line-number'>167</span>
+<span class='line-number'>168</span>
+<span class='line-number'>169</span>
+<span class='line-number'>170</span>
+<span class='line-number'>171</span>
+<span class='line-number'>172</span>
+<span class='line-number'>173</span>
+<span class='line-number'>174</span>
+<span class='line-number'>175</span>
+<span class='line-number'>176</span>
+<span class='line-number'>177</span>
+<span class='line-number'>178</span>
+<span class='line-number'>179</span>
+<span class='line-number'>180</span>
+<span class='line-number'>181</span>
+<span class='line-number'>182</span>
+<span class='line-number'>183</span>
+<span class='line-number'>184</span>
+<span class='line-number'>185</span>
+<span class='line-number'>186</span>
+<span class='line-number'>187</span>
+<span class='line-number'>188</span>
+<span class='line-number'>189</span>
+<span class='line-number'>190</span>
+<span class='line-number'>191</span>
+<span class='line-number'>192</span>
+<span class='line-number'>193</span>
+<span class='line-number'>194</span>
+<span class='line-number'>195</span>
+<span class='line-number'>196</span>
+<span class='line-number'>197</span>
+<span class='line-number'>198</span>
+<span class='line-number'>199</span>
+<span class='line-number'>200</span>
+<span class='line-number'>201</span>
+<span class='line-number'>202</span>
+<span class='line-number'>203</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="c">#!/bin/sh</span>
+</span><span class='line'>
+</span><span class='line'>usage<span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>    cat <span class="s">&lt;&lt;EOF</span>
+</span><span class='line'><span class="s">${0##*/}:  Remotely unlock a LUKS-encrypted Ubuntu root filesystem</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">Works around bug #595648 &lt;https://bugs.launchpad.net/bugs/595648&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">Usage:  $0 [options] [--] &lt;host&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">Arguments:</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">  -h, --help</span>
+</span><span class='line'><span class="s">    Display this usage message and exit</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">  -i &lt;identity_file&gt;, --identity &lt;identity_file&gt;, --identity=&lt;identity_file&gt;</span>
+</span><span class='line'><span class="s">    Path to the SSH private key.</span>
+</span><span class='line'><span class="s">    Default: ${idbase}&lt;host&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">  -k &lt;knownhosts&gt;, --known-hosts &lt;knownhosts&gt;, --known-hosts=&lt;knownhosts&gt;</span>
+</span><span class='line'><span class="s">    Path to the &#39;known_hosts&#39; file.</span>
+</span><span class='line'><span class="s">    Default: ${knownhosts}</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">  -l, --login</span>
+</span><span class='line'><span class="s">    Just log in, don&#39;t try to unlock the system.</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">  --</span>
+</span><span class='line'><span class="s">    End of options; treat the next argument as the hostname even if it</span>
+</span><span class='line'><span class="s">    begins with &#39;-&#39;.</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">  &lt;host&gt;</span>
+</span><span class='line'><span class="s">    The name of the remote system to unlock</span>
+</span><span class='line'><span class="s">EOF</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c"># handy logging and error handling functions</span>
+</span><span class='line'>log<span class="o">()</span> <span class="o">{</span> <span class="nb">printf</span> <span class="s1">&#39;%s\n&#39;</span> <span class="s2">&quot;$*&quot;</span><span class="p">;</span> <span class="o">}</span>
+</span><span class='line'>error<span class="o">()</span> <span class="o">{</span> log <span class="s2">&quot;ERROR: $@&quot;</span> &gt;<span class="p">&amp;</span>2<span class="p">;</span> <span class="o">}</span>
+</span><span class='line'>fatal<span class="o">()</span> <span class="o">{</span> error <span class="s2">&quot;$@&quot;</span><span class="p">;</span> <span class="nb">exit </span>1<span class="p">;</span> <span class="o">}</span>
+</span><span class='line'>try<span class="o">()</span> <span class="o">{</span> <span class="s2">&quot;$@&quot;</span> <span class="o">||</span> fatal <span class="s2">&quot;&#39;$@&#39; failed&quot;</span><span class="p">;</span> <span class="o">}</span>
+</span><span class='line'>usage_fatal<span class="o">()</span> <span class="o">{</span> usage &gt;<span class="p">&amp;</span>2<span class="p">;</span> <span class="nb">printf</span> <span class="s1">&#39;\n&#39;</span> &gt;<span class="p">&amp;</span>2<span class="p">;</span> fatal <span class="s2">&quot;$@&quot;</span><span class="p">;</span> <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c"># quote special characters so that:</span>
+</span><span class='line'><span class="c">#    eval &quot;set -- $(shell_quote &quot;$@&quot;)&quot;</span>
+</span><span class='line'><span class="c"># is always a no-op no matter what values are in the positional</span>
+</span><span class='line'><span class="c"># parameters.  note that it is run in a subshell to protect the</span>
+</span><span class='line'><span class="c"># caller&#39;s environment.</span>
+</span><span class='line'>shell_quote<span class="o">()</span> <span class="o">(</span>
+</span><span class='line'>    <span class="nv">sep</span><span class="o">=</span>
+</span><span class='line'>    <span class="k">for</span> i in <span class="s2">&quot;$@&quot;</span><span class="p">;</span> <span class="k">do</span>
+</span><span class='line'>       <span class="nv">iesc</span><span class="o">=</span><span class="k">$(</span><span class="nb">printf</span> %s<span class="se">\\</span>n <span class="s2">&quot;${i}eoi&quot;</span> <span class="p">|</span> sed -e <span class="s2">&quot;s/&#39;/&#39;\\\\&#39;&#39;/g&quot;</span><span class="k">)</span>
+</span><span class='line'>       <span class="nv">iesc</span><span class="o">=</span><span class="se">\&#39;</span><span class="k">${</span><span class="nv">iesc</span><span class="p">%eoi</span><span class="k">}</span><span class="se">\&#39;</span>
+</span><span class='line'>       <span class="nb">printf</span> %s <span class="s2">&quot;${sep}${iesc}&quot;</span>
+</span><span class='line'>       <span class="nv">sep</span><span class="o">=</span><span class="s2">&quot; &quot;</span>
+</span><span class='line'>    <span class="k">done</span>
+</span><span class='line'><span class="o">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c"># parse arguments</span>
+</span><span class='line'><span class="nv">knownhosts</span><span class="o">=</span>~/.ssh/known_hosts.initramfs
+</span><span class='line'><span class="nv">idbase</span><span class="o">=</span>~/.ssh/id_rsa.initramfs_
+</span><span class='line'><span class="nb">unset </span>id
+</span><span class='line'><span class="nv">runscript</span><span class="o">=</span><span class="nb">true</span>
+</span><span class='line'><span class="k">while</span> <span class="o">[</span> <span class="s2">&quot;$#&quot;</span> -gt <span class="m">0</span> <span class="o">]</span><span class="p">;</span> <span class="k">do</span>
+</span><span class='line'>    <span class="nv">arg</span><span class="o">=</span><span class="nv">$1</span>
+</span><span class='line'>    <span class="k">case</span> <span class="nv">$1</span> in
+</span><span class='line'>        <span class="c"># convert &quot;--opt=the value&quot; to --opt &quot;the value&quot;.</span>
+</span><span class='line'>        --*<span class="s1">&#39;=&#39;</span>*<span class="o">)</span> <span class="nb">shift</span><span class="p">;</span> <span class="nb">set</span> -- <span class="s2">&quot;${arg%%=*}&quot;</span> <span class="s2">&quot;${arg#*=}&quot;</span> <span class="s2">&quot;$@&quot;</span><span class="p">;</span> <span class="k">continue</span><span class="p">;;</span>
+</span><span class='line'>        -h<span class="p">|</span>--help<span class="o">)</span> usage<span class="p">;</span> <span class="nb">exit </span>0<span class="p">;;</span>
+</span><span class='line'>        -i<span class="p">|</span>--identity<span class="o">)</span> <span class="nb">shift</span><span class="p">;</span> <span class="nv">id</span><span class="o">=</span><span class="nv">$1</span><span class="p">;;</span>
+</span><span class='line'>        -k<span class="p">|</span>--known-hosts<span class="o">)</span> <span class="nb">shift</span><span class="p">;</span> <span class="nv">knownhosts</span><span class="o">=</span><span class="nv">$1</span><span class="p">;;</span>
+</span><span class='line'>        -l<span class="p">|</span>--login<span class="o">)</span> <span class="nv">runscript</span><span class="o">=</span><span class="nb">false</span><span class="p">;;</span>
+</span><span class='line'>        --<span class="o">)</span> <span class="nb">shift</span><span class="p">;</span> <span class="nb">break</span><span class="p">;;</span>
+</span><span class='line'>        -*<span class="o">)</span> usage_fatal <span class="s2">&quot;unknown option: &#39;$1&#39;&quot;</span><span class="p">;;</span>
+</span><span class='line'>        *<span class="o">)</span> <span class="nb">break</span><span class="p">;;</span>
+</span><span class='line'>    <span class="k">esac</span>
+</span><span class='line'>    <span class="nb">shift</span> <span class="o">||</span> usage_fatal <span class="s2">&quot;option &#39;${arg}&#39; requires a value&quot;</span>
+</span><span class='line'><span class="k">done</span>
+</span><span class='line'><span class="o">[</span> <span class="s2">&quot;$#&quot;</span> -ge <span class="m">1</span> <span class="o">]</span> <span class="o">||</span> usage_fatal <span class="s2">&quot;no hostname specified&quot;</span>
+</span><span class='line'><span class="nv">host</span><span class="o">=</span><span class="nv">$1</span><span class="p">;</span> <span class="nb">shift</span>
+</span><span class='line'><span class="o">[</span> <span class="s2">&quot;$#&quot;</span> -eq <span class="m">0</span> <span class="o">]</span> <span class="o">||</span> fatal <span class="s2">&quot;unknown argument: &#39;$1&#39;&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">[</span> -n <span class="s2">&quot;${id+set}&quot;</span> <span class="o">]</span> <span class="o">||</span> <span class="nv">id</span><span class="o">=</span><span class="k">${</span><span class="nv">idbase</span><span class="k">}${</span><span class="nv">host</span><span class="p">%%.*</span><span class="k">}</span>
+</span><span class='line'><span class="o">[</span> -r <span class="s2">&quot;${id}&quot;</span> <span class="o">]</span> <span class="o">||</span> fatal <span class="s2">&quot;can&#39;t read ssh key ${id}&quot;</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="nv">script</span><span class="o">=</span><span class="s1">&#39;#!/bin/sh</span>
+</span><span class='line'><span class="s1">PATH=/sbin:${PATH}</span>
+</span><span class='line'>
+</span><span class='line'><span class="s1">p() { printf %s\\n &quot;$*&quot;; }</span>
+</span><span class='line'><span class="s1">log() { p &quot;$@&quot;; }</span>
+</span><span class='line'><span class="s1">warn() { log &quot;WARNING: $@&quot; &gt;&amp;2; }</span>
+</span><span class='line'><span class="s1">error() { log &quot;ERROR: $@&quot; &gt;&amp;2; }</span>
+</span><span class='line'><span class="s1">fatal() { error &quot;$@&quot;; exit 1; }</span>
+</span><span class='line'><span class="s1">try() { &quot;$@&quot; || fatal &quot;&#39;</span><span class="se">\&#39;</span><span class="s1">&#39;$@&#39;</span><span class="se">\&#39;</span><span class="s1">&#39; failed&quot;; }</span>
+</span><span class='line'>
+</span><span class='line'><span class="s1">getpid() {</span>
+</span><span class='line'><span class="s1">    psout=$(try ps) || exit 1</span>
+</span><span class='line'><span class="s1">    psout=$(p &quot;${psout}&quot; | grep &quot;$1&quot;) || return 0</span>
+</span><span class='line'><span class="s1">    pswc=$(p &quot;${psout}&quot; | try wc -l) || exit 1</span>
+</span><span class='line'><span class="s1">    [ &quot;${pswc}&quot; -eq 1 ] || fatal &quot;more than one instance of $1:</span>
+</span><span class='line'><span class="s1">${psout}&quot;</span>
+</span><span class='line'><span class="s1">    p &quot;${psout}&quot; | try awk &#39;</span><span class="se">\&#39;</span><span class="s1">&#39;{print$1}&#39;</span><span class="se">\&#39;</span><span class="s1">&#39; || exit 1</span>
+</span><span class='line'><span class="s1">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="s1"># if cryptroot is not running, then there is no password prompt so</span>
+</span><span class='line'><span class="s1"># there is nothing to do</span>
+</span><span class='line'><span class="s1">log &quot;checking if /scripts/local-top/cryptroot is running...&quot;</span>
+</span><span class='line'><span class="s1">cr_pid=$(getpid &quot;/scripts/local-top/[c]ryptroot&quot;) || exit 1</span>
+</span><span class='line'><span class="s1">[ -n &quot;${cr_pid}&quot; ] || fatal &quot;/scripts/local-top/cryptroot is not running&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="s1">unset pw</span>
+</span><span class='line'>
+</span><span class='line'><span class="s1"># keep prompting for a password over and over until cryptroot has</span>
+</span><span class='line'><span class="s1"># finished running</span>
+</span><span class='line'><span class="s1">while true; do</span>
+</span><span class='line'><span class="s1">    cs_pid=$(getpid &quot;/sbin/[c]ryptsetup&quot;) || exit 1</span>
+</span><span class='line'><span class="s1">    [ -n &quot;${cs_pid}&quot; ] || {</span>
+</span><span class='line'><span class="s1">        log &quot;waiting to see if there will be another passphrase prompt...&quot;</span>
+</span><span class='line'><span class="s1">        # the next commands are all on one line so that they are still</span>
+</span><span class='line'><span class="s1">        # in busybox memory if the root filesystem is mounted during</span>
+</span><span class='line'><span class="s1">        # the sleep (which would cause this script to disappear during</span>
+</span><span class='line'><span class="s1">        # execution)</span>
+</span><span class='line'><span class="s1">        sleep 1; [ -d /proc/&quot;${cr_pid}&quot; ] || { log &quot;done&quot;; exit 0; }</span>
+</span><span class='line'><span class="s1">        continue</span>
+</span><span class='line'><span class="s1">    }</span>
+</span><span class='line'>
+</span><span class='line'><span class="s1">    log &quot;getting /sbin/cryptsetup command-line arguments...&quot;</span>
+</span><span class='line'><span class="s1">    cs_args=$(try tr &quot;\\0&quot; &quot;\\n&quot; &lt;/proc/${cs_pid}/cmdline) || exit 1</span>
+</span><span class='line'><span class="s1">    set --</span>
+</span><span class='line'><span class="s1">    while IFS= read -r line; do</span>
+</span><span class='line'><span class="s1">        set -- &quot;$@&quot; &quot;${line}&quot;</span>
+</span><span class='line'><span class="s1">    done &lt;&lt;EOF</span>
+</span><span class='line'><span class="s1">${cs_args}</span>
+</span><span class='line'><span class="s1">EOF</span>
+</span><span class='line'><span class="s1">    log &quot;command: $@&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="s1">    [ -n &quot;${pw+set}&quot; ] &amp;&amp; {</span>
+</span><span class='line'><span class="s1">        log &quot;trying previously entered passphrase...&quot;</span>
+</span><span class='line'><span class="s1">        printf %s &quot;${pw}&quot; | try &quot;$@&quot;</span>
+</span><span class='line'><span class="s1">    } || {</span>
+</span><span class='line'><span class="s1">        pw=$(try /lib/cryptsetup/askpass &quot;Enter passphrase: &quot; &amp;&amp; echo x) \</span>
+</span><span class='line'><span class="s1">            || exit 1</span>
+</span><span class='line'><span class="s1">        pw=${pw%x}</span>
+</span><span class='line'><span class="s1">        printf %s &quot;${pw}&quot; | try &quot;$@&quot; || exit 1</span>
+</span><span class='line'><span class="s1">    }</span>
+</span><span class='line'>
+</span><span class='line'><span class="s1">    log &quot;passphrase accepted; killing passphrase prompt...&quot;</span>
+</span><span class='line'><span class="s1">    for ap in \</span>
+</span><span class='line'><span class="s1">        &quot;/lib/cryptsetup/[a]skpass&quot; \</span>
+</span><span class='line'><span class="s1">        &quot;[a]sk-for-password&quot; \</span>
+</span><span class='line'><span class="s1">        ;</span>
+</span><span class='line'><span class="s1">    do</span>
+</span><span class='line'><span class="s1">        log &quot;  checking for ${ap}...&quot;</span>
+</span><span class='line'><span class="s1">        ap_pid=$(getpid &quot;${ap}&quot;) || exit 1</span>
+</span><span class='line'><span class="s1">        [ -n &quot;${ap_pid}&quot; ] || continue</span>
+</span><span class='line'><span class="s1">        log &quot;    killing PID ${ap_pid}...&quot;</span>
+</span><span class='line'><span class="s1">        try kill &quot;${ap_pid}&quot;</span>
+</span><span class='line'><span class="s1">    done</span>
+</span><span class='line'><span class="s1">done</span>
+</span><span class='line'><span class="s1">&#39;</span>
+</span><span class='line'>
+</span><span class='line'>run_ssh<span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>    <span class="nb">unset </span>forcetty
+</span><span class='line'>    <span class="k">case</span> <span class="nv">$1</span> in -t<span class="o">)</span> <span class="nv">forcetty</span><span class="o">=</span><span class="nv">$1</span><span class="p">;</span> <span class="nb">shift</span><span class="p">;;</span> <span class="k">esac</span>
+</span><span class='line'>    ssh -o <span class="nv">UserKnownHostsFile</span><span class="o">=</span><span class="s2">&quot;${knownhosts}&quot;</span> <span class="se">\</span>
+</span><span class='line'>        -i <span class="s2">&quot;${id}&quot;</span> <span class="se">\</span>
+</span><span class='line'>        <span class="k">${</span><span class="nv">forcetty</span><span class="k">}</span> <span class="se">\</span>
+</span><span class='line'>        root@<span class="s2">&quot;${host}&quot;</span> <span class="s2">&quot;$@&quot;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c"># $1 is the shell command to run; must be &lt; 1024 characters (busybox</span>
+</span><span class='line'><span class="c"># limitation?)</span>
+</span><span class='line'>run_ssh_cmd<span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>    <span class="nb">unset </span>forcetty
+</span><span class='line'>    <span class="k">case</span> <span class="nv">$1</span> in -t<span class="o">)</span> <span class="nv">forcetty</span><span class="o">=</span><span class="nv">$1</span><span class="p">;</span> <span class="nb">shift</span><span class="p">;;</span> <span class="k">esac</span>
+</span><span class='line'>    <span class="nv">sshcmd</span><span class="o">=</span><span class="s1">&#39;sh -c &#39;</span><span class="k">$(</span>shell_quote <span class="s2">&quot;$1&quot;</span><span class="k">)</span><span class="s1">&#39; -&#39;</span>
+</span><span class='line'>    run_ssh <span class="k">${</span><span class="nv">forcetty</span><span class="k">}</span> <span class="s2">&quot;${sshcmd}&quot;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="s2">&quot;${runscript}&quot;</span> <span class="o">||</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">while</span> <span class="nv">IFS</span><span class="o">=</span> <span class="nb">read</span> -r line<span class="p">;</span> <span class="k">do</span>
+</span><span class='line'>        log <span class="s2">&quot;${line}&quot;</span>
+</span><span class='line'>    <span class="k">done</span> <span class="s">&lt;&lt;\EOF</span>
+</span><span class='line'><span class="s">After you are logged in:</span>
+</span><span class='line'><span class="s">  1. use &#39;ps -l&#39; to get cryptsetup&#39;s command-line arguments</span>
+</span><span class='line'><span class="s">  2. run:</span>
+</span><span class='line'><span class="s">         /lib/cryptsetup/askpass &quot;Enter passphrase: &quot; \</span>
+</span><span class='line'><span class="s">             | /sbin/cryptsetup &lt;args go here&gt;</span>
+</span><span class='line'><span class="s">  3. kill &#39;plymouth ask-for-password&#39; or &#39;askpass&#39; as appropriate</span>
+</span><span class='line'><span class="s">  4. log out</span>
+</span><span class='line'>
+</span><span class='line'><span class="s">EOF</span>
+</span><span class='line'>    run_ssh
+</span><span class='line'>    <span class="nb">exit</span> <span class="nv">$?</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>log <span class="s2">&quot;sending script to ${host}...&quot;</span>
+</span><span class='line'><span class="nb">printf</span> %s<span class="se">\\</span>n <span class="s2">&quot;${script}&quot;</span> <span class="p">|</span>
+</span><span class='line'>run_ssh_cmd <span class="s1">&#39;cat &gt;tmp.sh &amp;&amp; chmod +x tmp.sh&#39;</span> <span class="se">\</span>
+</span><span class='line'>    <span class="o">||</span> fatal <span class="s2">&quot;unable to create script&quot;</span>
+</span><span class='line'>
+</span><span class='line'>log <span class="s2">&quot;running script on ${host}...&quot;</span>
+</span><span class='line'>run_ssh_cmd -t <span class="s1">&#39;./tmp.sh&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Use the script like this (enter passphrase when prompted, use the IP address of your own vServer)</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>./unlock-cryptroot -k ~/.ssh/known_hosts.initramfs -i ~/.ssh/id_rsa.hetzner 78.47.247.195
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Should something go wrong you can always boot the Hetzner rescue system and chroot to your vServer:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>cryptsetup luksOpen /dev/vda2 vda2_decrypt
+</span><span class='line'>/etc/init.d/lvm2 start
+</span><span class='line'>mkdir -p /mnt/ubuntu <span class="o">&amp;&amp;</span> <span class="se">\</span>
+</span><span class='line'>mount /dev/vg-encrypted/root /mnt/ubuntu
+</span><span class='line'>mount /dev/vda1 /mnt/ubuntu/boot
+</span><span class='line'>mount -t proc none /mnt/ubuntu/proc
+</span><span class='line'>mount -o <span class="nb">bind</span> /dev /mnt/ubuntu/dev
+</span><span class='line'>mount -o <span class="nb">bind</span> /sys /mnt/ubuntu/sys
+</span><span class='line'><span class="nv">LANG</span><span class="o">=</span>C chroot /mnt/ubuntu /bin/bash
+</span></code></pre></td></tr></table></div></figure>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Setting Up NEMID on Hardware on Ubuntu 14.04 LTS]]></title>
+    <link href="https://blog.wbnet.dk/2014/11/25/setting-up-nemid-on-hardware-on-ubuntu-14-dot-04-lts/"/>
+    <updated>2014-11-25T20:49:12+01:00</updated>
+    <id>https://blog.wbnet.dk/2014/11/25/setting-up-nemid-on-hardware-on-ubuntu-14-dot-04-lts</id>
+    <content type="html"><![CDATA[<p>In Denmark we have a public single-sign-on solution, NEMID. To set up NEMID on Hardware (if you have the Gemalto USB token) on Ubuntu 14.04 you have to install the proper token driver and a build environment for building the NEMID driver. These are the required commands (inspired by <a href="http://blog.klavsen.info/content/nemid-p%C3%A5-hardware-guide">this post</a>):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>sudo apt-get install pcsc-tools libccid opensc libpcsclite-dev libboost1.55-dev libboost-system1.55-dev libboost-thread1.55-dev libboost-filesystem1.55-dev pkg-config zlib1g-dev
+</span><span class='line'>sudo apt-get install build-essential
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Then download the driver from NEMID, extract and configure:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>wget https://www.nemid.nu/dk-da/support/aktiver_nemid/aktiver_nemid_paa_hardware/installer_driver/drivers/libgtop11dotnet_2.2.0.12.tar.gz
+</span><span class='line'>tar xpzf libgtop11dotnet_2.2.0.12.tar.gz
+</span><span class='line'><span class="nb">cd </span>libgtop11dotnet-2.2.0.12
+</span><span class='line'>./configure
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Next, make and make install:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>make
+</span><span class='line'>sudo make install
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>You will also need the icedtea-plugin (for web-browsers).</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Dell Inspiron 1720 Will Not Boot - CAPS Lock Blinking]]></title>
+    <link href="https://blog.wbnet.dk/2014/11/15/dell-inspiron-1720-will-not-boot-caps-lock-blinking/"/>
+    <updated>2014-11-15T08:59:27+01:00</updated>
+    <id>https://blog.wbnet.dk/2014/11/15/dell-inspiron-1720-will-not-boot-caps-lock-blinking</id>
+    <content type="html"><![CDATA[<p>Our daughter dropped our old Dell Inspiron 1720 that she uses for kids television. After the fall it would not boot and CAPS lock was blinking. Apparently, the RAM had been unseated, so it was an easy fix. The following <a href="http://forum.notebookreview.com/dell-inspiron-dell-studio/334461-inspiron-1720-help.html#6">procedure</a> worked:</p>
+
+<ul>
+<li>Unplug the AC and battery. Remove both the RAM modules as well.</li>
+<li>Press the power button. This will help to loose all electrical static remains left in it. Hold it for about 10 seconds.</li>
+<li>Then plugin the AC and turn on - it should automatically shut itself off again due to the absence of the RAM modules. However if it doesn&rsquo;t or if it blinks again then just power it down.</li>
+<li>Remove the AC, then re-install both the RAM modules, then press the power button again for the same 10 seconds to loose all discharge especially from the RAM itself. Then plugin only the AC. Power it. See if it works this time round.</li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Installing R Packages RCurl and XML on Ubuntu 14.04]]></title>
+    <link href="https://blog.wbnet.dk/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04/"/>
+    <updated>2014-11-03T20:14:16+01:00</updated>
+    <id>https://blog.wbnet.dk/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04</id>
+    <content type="html"><![CDATA[<p>Installing R packages <code>RCurl</code> and <code>XML</code> on a fresh Ubuntu 14.04 LTS throws a few errors.</p>
+
+<p><code>RCurl</code> throws the following error:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='splus'><span class='line'>checking <span class="kr">for</span> curl<span class="o">-</span>config... no
+</span><span class='line'>Cannot find curl<span class="o">-</span>config
+</span><span class='line'>ERROR<span class="o">:</span> configuration failed <span class="kr">for</span> package ‘RCurl’
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The fix is easy. Install <code>libcurl4</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>sudo apt-get install libcurl4-openssl-dev
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And then re-install the <code>RCurl</code> package.</p>
+
+<p><code>XML</code> throws another error:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='splus'><span class='line'>checking <span class="kr">for</span> xml2<span class="o">-</span>config... no
+</span><span class='line'>Cannot find xml2<span class="o">-</span>config
+</span><span class='line'>ERROR<span class="o">:</span> configuration failed <span class="kr">for</span> package ‘XML’
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>To fix it install <code>libxml2</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>sudo apt-get install libxml2-dev
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And then re-install the <code>XML</code> package.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Setting Up Nginx for SSL/TLS]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/22/setting-up-nginx-for-ssl-slash-tls/"/>
+    <updated>2014-10-22T09:27:08+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/22/setting-up-nginx-for-ssl-slash-tls</id>
+    <content type="html"><![CDATA[<p>Before you can setup Nginx for serving pages via SSL/TLS you should <a href="https://blog.wbnet.dk/2014/10/19/obtaining-a-free-one-year-startssl-ssl-slash-tls-certificate/">obtain a certificate</a> (e.g. <code>test.wbnet.dk.crt</code>) and a private key (e.g. <code>test.wbnet.dk.key</code>).</p>
+
+<p>To server pages via SSL/TLS with SSL 3.0 disabled (due to <a href="http://poodlebleed.com/">Poodlebleed</a>) use a Nginx configuration like (adapted from <a href="https://gist.github.com/plentz/6737338">this</a>):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+<span class='line-number'>65</span>
+<span class='line-number'>66</span>
+<span class='line-number'>67</span>
+<span class='line-number'>68</span>
+<span class='line-number'>69</span>
+<span class='line-number'>70</span>
+<span class='line-number'>71</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>server <span class="o">{</span>
+</span><span class='line'>  listen       <span class="m">443</span> ssl<span class="p">;</span>
+</span><span class='line'>  server_name  test.wbnet.dk<span class="p">;</span>
+</span><span class='line'>  ssl on<span class="p">;</span>
+</span><span class='line'>  ssl_certificate      /opt/local/etc/nginx/ssl/wbnet.dk/test.wbnet.dk.crt<span class="p">;</span>
+</span><span class='line'>  ssl_certificate_key  /opt/local/etc/nginx/ssl/wbnet.dk/test.wbnet.dk.key<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># enable session resumption to improve https performance</span>
+</span><span class='line'>  <span class="c"># http://vincent.bernat.im/en/blog/2011-ssl-session-reuse-rfc5077.html</span>
+</span><span class='line'>  ssl_session_cache    shared:SSL:1m<span class="p">;</span>
+</span><span class='line'>  ssl_session_timeout  5m<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># Diffie-Hellman parameter for DHE ciphersuites, recommended 2048 bits</span>
+</span><span class='line'>  <span class="c"># to generate use: openssl dhparam -rand – 2048</span>
+</span><span class='line'>  ssl_dhparam /opt/local/etc/nginx/ssl/dhparam.pem<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># read more here http://tautt.com/best-nginx-configuration-for-security/</span>
+</span><span class='line'>  <span class="c"># don&#39;t send the nginx version number in error pages and Server header</span>
+</span><span class='line'>  server_tokens off<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># config to don&#39;t allow the browser to render the page inside an frame or iframe</span>
+</span><span class='line'>  <span class="c"># and avoid clickjacking http://en.wikipedia.org/wiki/Clickjacking</span>
+</span><span class='line'>  <span class="c"># if you need to allow [i]frames, you can use SAMEORIGIN or even set an uri with</span>
+</span><span class='line'>  <span class="c"># ALLOW-FROM uri</span>
+</span><span class='line'>  <span class="c"># https://developer.mozilla.org/en-US/docs/HTTP/X-Frame-Options</span>
+</span><span class='line'>  add_header X-Frame-Options SAMEORIGIN<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># when serving user-supplied content, include a X-Content-Type-Options: nosniff</span>
+</span><span class='line'>  <span class="c"># header along with the Content-Type: header, to disable content-type sniffing</span>
+</span><span class='line'>  <span class="c"># on some browsers.</span>
+</span><span class='line'>  <span class="c"># https://www.owasp.org/index.php/List_of_useful_HTTP_headers</span>
+</span><span class='line'>  <span class="c"># currently suppoorted in IE &gt; 8</span>
+</span><span class='line'>  <span class="c"># http://blogs.msdn.com/b/ie/archive/2008/09/02/ie8-security-part-vi-beta-2-update.aspx</span>
+</span><span class='line'>  <span class="c"># http://msdn.microsoft.com/en-us/library/ie/gg622941(v=vs.85).aspx</span>
+</span><span class='line'>  <span class="c"># &#39;soon&#39; on Firefox https://bugzilla.mozilla.org/show_bug.cgi?id=471020</span>
+</span><span class='line'>  add_header X-Content-Type-Options nosniff<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># This header enables the Cross-site scripting (XSS) filter built into most</span>
+</span><span class='line'>  <span class="c"># recent web browsers. It&#39;s usually enabled by default anyway, so the role</span>
+</span><span class='line'>  <span class="c"># of this header is to re-enable the filter for this particular website if</span>
+</span><span class='line'>  <span class="c"># it was disabled by the user.</span>
+</span><span class='line'>  <span class="c"># https://www.owasp.org/index.php/List_of_useful_HTTP_headers</span>
+</span><span class='line'>  add_header X-XSS-Protection <span class="s2">&quot;1; mode=block&quot;</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># enables server-side protection from BEAST attacks</span>
+</span><span class='line'>  <span class="c"># http://blog.ivanristic.com/2013/09/is-beast-still-a-threat.html</span>
+</span><span class='line'>  ssl_prefer_server_ciphers on<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># disable SSLv3(enabled by default since nginx 0.8.19) since it&#39;s less secure</span>
+</span><span class='line'>  <span class="c"># then TLS http://en.wikipedia.org/wiki/Secure_Sockets_Layer#SSL_3.0</span>
+</span><span class='line'>  ssl_protocols TLSv1 TLSv1.1 TLSv1.2<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># ciphers chosen for forward secrecy and compatibility</span>
+</span><span class='line'>  <span class="c"># http://blog.ivanristic.com/2013/08/configuring-apache-nginx-and-openssl-for-forward-secrecy.html</span>
+</span><span class='line'>  ssl_ciphers <span class="s1">&#39;ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:kEDH+AESGCM:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:DHE-RSA-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA:AES128-GCM-SHA256:AES256-GCM-SHA384:ECDHE-RSA-RC4-SHA:ECDHE-ECDSA-RC4-SHA:RC4-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!3DES:!MD5:!PSK&#39;</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># enable ocsp stapling (mechanism by which a site can convey certificate</span>
+</span><span class='line'>  <span class="c"># revocation information to visitors in a privacy-preserving, scalable manner)</span>
+</span><span class='line'>  <span class="c"># http://blog.mozilla.org/security/2013/07/29/ocsp-stapling-in-firefox/</span>
+</span><span class='line'>  resolver 8.8.8.8<span class="p">;</span>
+</span><span class='line'>  ssl_stapling on<span class="p">;</span>
+</span><span class='line'>  ssl_trusted_certificate /opt/local/etc/nginx/ssl/wbnet.dk/test.wbnet.dk.crt<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c"># config to enable HSTS(HTTP Strict Transport Security)</span>
+</span><span class='line'>  <span class="c"># https://developer.mozilla.org/en-US/docs/Security/HTTP_Strict_Transport_Security</span>
+</span><span class='line'>  <span class="c"># to avoid ssl stripping https://en.wikipedia.org/wiki/SSL_stripping#SSL_stripping</span>
+</span><span class='line'>  add_header Strict-Transport-Security <span class="s2">&quot;max-age=31536000; includeSubdomains;&quot;</span><span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c">#... the rest of your configuration</span>
+</span><span class='line'>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Setting Up Nginx and PHP-FPM in an OmniOS Zone]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/21/setting-up-nginx-and-php-fpm-in-an-omnios-zone/"/>
+    <updated>2014-10-21T22:41:35+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/21/setting-up-nginx-and-php-fpm-in-an-omnios-zone</id>
+    <content type="html"><![CDATA[<p>Start by configuring a <a href="https://blog.wbnet.dk/2014/10/10/creating-and-cloning-an-omnios-zone/">zone</a> and <a href="https://blog.wbnet.dk/2014/10/10/install-packages-from-joyent-slash-smartos-repository-in-omnios/">install the Joyent/SmartOS package manager</a>.</p>
+
+<p>Then install Nginx and PHP-FPM (v5.5):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>pkgin install nginx php55-fpm
+</span><span class='line'>calculating dependencies... <span class="k">done</span>.
+</span><span class='line'>nothing to upgrade.
+</span><span class='line'><span class="m">7</span> packages to be installed: xmlcatmgr-2.2nb1 perl-5.20.0nb2 pcre-8.35nb1 php-5.5.16 libxml2-2.9.1nb2 nginx-1.6.0 php55-fpm-5.5.16 <span class="o">(</span>28M to download, 105M to install<span class="o">)</span>
+</span><span class='line'>proceed ? <span class="o">[</span>Y/n<span class="o">]</span> y
+</span><span class='line'>downloading packages...
+</span><span class='line'><span class="o">[</span>...<span class="o">]</span>
+</span><span class='line'>nginx-1.6.0: Creating group <span class="sb">``</span>www<span class="s1">&#39;&#39;</span>
+</span><span class='line'>nginx-1.6.0: Creating user <span class="sb">``</span>www<span class="s1">&#39;&#39;</span>
+</span><span class='line'><span class="o">[</span>...<span class="o">]</span>
+</span><span class='line'><span class="o">============================================================================</span>
+</span><span class='line'>This package has SMF support.  You may use svcadm<span class="o">(</span>1M<span class="o">)</span> to <span class="s1">&#39;enable&#39;</span>, <span class="s1">&#39;disable&#39;</span>
+</span><span class='line'>or <span class="s1">&#39;restart&#39;</span> services.  To <span class="nb">enable </span>the instance<span class="o">(</span>s<span class="o">)</span> <span class="k">for</span> this package, run:
+</span><span class='line'>
+</span><span class='line'>        /usr/sbin/svcadm <span class="nb">enable </span>svc:/pkgsrc/nginx:default
+</span><span class='line'>
+</span><span class='line'>Use svcs<span class="o">(</span>1<span class="o">)</span> to check on service status.  See smf<span class="o">(</span>5<span class="o">)</span> <span class="k">for</span> more information.
+</span><span class='line'><span class="o">============================================================================</span>
+</span><span class='line'><span class="o">[</span>...<span class="o">]</span>
+</span><span class='line'>installing php55-fpm-5.5.16...
+</span><span class='line'>php55-fpm-5.5.16: copying /opt/local/share/examples/php/php-fpm.conf to /opt/local/etc/php-fpm.conf
+</span><span class='line'><span class="o">============================================================================</span>
+</span><span class='line'>This package has SMF support.  You may use svcadm<span class="o">(</span>1M<span class="o">)</span> to <span class="s1">&#39;enable&#39;</span>, <span class="s1">&#39;disable&#39;</span>
+</span><span class='line'>or <span class="s1">&#39;restart&#39;</span> services.  To <span class="nb">enable </span>the instance<span class="o">(</span>s<span class="o">)</span> <span class="k">for</span> this package, run:
+</span><span class='line'>
+</span><span class='line'>        /usr/sbin/svcadm <span class="nb">enable </span>svc:/pkgsrc/php-fpm:default
+</span><span class='line'>
+</span><span class='line'>Use svcs<span class="o">(</span>1<span class="o">)</span> to check on service status.  See smf<span class="o">(</span>5<span class="o">)</span> <span class="k">for</span> more information.
+</span><span class='line'><span class="o">============================================================================</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>As seen above a <code>www</code> user and <code>www</code> group is created for Nginx/web content. Start the Nginx web-server:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>svcadm <span class="nb">enable </span>nginx
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Browse to <code>http://ip-address</code>, and you should see the Nginx welcome page.</p>
+
+<p>Here is a minimal Nginx configuration file (<code>/opt/local/etc/nginx/nginx.conf</code>) to enable PHP-FPM:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>user   www  www<span class="p">;</span>
+</span><span class='line'>worker_processes  1<span class="p">;</span>
+</span><span class='line'>events <span class="o">{</span>
+</span><span class='line'>    worker_connections  1024<span class="p">;</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'>http <span class="o">{</span>
+</span><span class='line'>    include       /opt/local/etc/nginx/mime.types<span class="p">;</span>
+</span><span class='line'>    default_type  application/octet-stream<span class="p">;</span>
+</span><span class='line'>    sendfile        on<span class="p">;</span>
+</span><span class='line'>    keepalive_timeout  65<span class="p">;</span>
+</span><span class='line'>    server <span class="o">{</span>
+</span><span class='line'>        listen       80<span class="p">;</span>
+</span><span class='line'>        server_name  localhost<span class="p">;</span>
+</span><span class='line'>
+</span><span class='line'>        location / <span class="o">{</span>
+</span><span class='line'>            root   /www<span class="p">;</span>
+</span><span class='line'>            index  index.php index.html index.htm<span class="p">;</span>
+</span><span class='line'>        <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>        error_page   <span class="m">500</span> <span class="m">502</span> <span class="m">503</span> <span class="m">504</span>  /50x.html<span class="p">;</span>
+</span><span class='line'>        <span class="nv">location</span> <span class="o">=</span> /50x.html <span class="o">{</span>
+</span><span class='line'>            root   share/examples/nginx/html<span class="p">;</span>
+</span><span class='line'>        <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>        <span class="c"># pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000</span>
+</span><span class='line'>        <span class="c">#</span>
+</span><span class='line'>        location ~ <span class="se">\.</span>php<span class="nv">$ </span><span class="o">{</span>
+</span><span class='line'>            root           /www<span class="p">;</span>
+</span><span class='line'>            fastcgi_pass   127.0.0.1:9000<span class="p">;</span>
+</span><span class='line'>            fastcgi_index  index.php<span class="p">;</span>
+</span><span class='line'>            fastcgi_param  SCRIPT_FILENAME  <span class="nv">$document_root$fastcgi_script_name</span><span class="p">;</span>
+</span><span class='line'>            include        /opt/local/etc/nginx/fastcgi_params<span class="p">;</span>
+</span><span class='line'>        <span class="o">}</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create a <code>/www</code> directory to hold html/php files and create an <code>index.php</code> file:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='php'><span class='line'><span class="o">&lt;?</span><span class="nx">php</span>
+</span><span class='line'><span class="nb">phpinfo</span><span class="p">();</span>
+</span><span class='line'><span class="cp">?&gt;</span><span class="x"></span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Then restart Nginx and start PHP-FPM:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>svcadm disable nginx <span class="o">&amp;&amp;</span> svcadm <span class="nb">enable </span>nginx <span class="o">&amp;&amp;</span> svcadm <span class="nb">enable </span>php-fpm
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Browse to <code>http://ip-address</code> to verify that the PHP installation is working and to view PHP information.</p>
+
+<h2>Extensions</h2>
+
+<p>Search for available PHP extensions:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>pkgin search php55-*
+</span><span class='line'>php55-zlib-5.5.16nb1  PHP extension <span class="k">for</span> zlib compression
+</span><span class='line'>php55-zip-5.5.16     PHP extension <span class="k">for</span> ZIP archive handling
+</span><span class='line'>php55-zendoptimizerplus-7.0.0  Zend opcode cache and optimizer <span class="k">for</span> PHP
+</span><span class='line'>php55-yaz-1.1.1nb9   PHP extension <span class="k">for</span> YAZ
+</span><span class='line'>php55-xsl-5.5.16nb1  PHP extension <span class="k">for</span> XSLT functions
+</span><span class='line'>php55-xmlrpc-5.5.16  PHP extension <span class="k">for</span> XML-RPC support
+</span><span class='line'>php55-wddx-5.5.16    PHP extension <span class="k">for</span> WDDX support
+</span><span class='line'>php55-uploadprogress-1.0.1  PHP extension to track progress of a file upload
+</span><span class='line'>php55-tt-rss-fever-plugin-1.2  Fever emulation plugin <span class="k">for</span> Tiny Tiny RSS
+</span><span class='line'>php55-tt-rss-1.12    Tiny Tiny RSS is an open <span class="nb">source </span>web-based RSS feed reader
+</span><span class='line'>php55-tiki6-6.8nb1   Tiki Wiki CMS Groupware web-based application
+</span><span class='line'>php55-tidy-5.5.16    PHP extension <span class="k">for</span> tidy functions
+</span><span class='line'>php55-sysvshm-5.5.16  PHP extension <span class="k">for</span> SysV shared memory support
+</span><span class='line'>php55-sysvsem-5.5.16  PHP extension <span class="k">for</span> SysV semaphore support
+</span><span class='line'>php55-sysvmsg-5.5.16  PHP extension <span class="k">for</span> SysV IPC Message Queues support
+</span><span class='line'>php55-ssh2-0.12      PHP bindings to the functions of libssh2
+</span><span class='line'>php55-ssdeep-1.0.2   PHP extension <span class="k">for</span> ssdeep
+</span><span class='line'><span class="o">[</span>...<span class="o">]</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>To install a PHP extension install it, add the extension to <code>/opt/local/etc/php.ini</code>, and then restart PHP-FPM:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>pkgin -y install php55-gd
+</span><span class='line'>calculating dependencies... <span class="k">done</span>.
+</span><span class='line'>
+</span><span class='line'>nothing to upgrade.
+</span><span class='line'><span class="m">4</span> packages to be installed: png-1.6.12 libjpeg-turbo-1.3.0nb1 freetype2-2.5.3nb1 php55-gd-5.5.16nb1 <span class="o">(</span>2201K to download, 6474K to install<span class="o">)</span>
+</span><span class='line'>
+</span><span class='line'>downloading packages...
+</span><span class='line'><span class="o">[</span>...<span class="o">]</span>
+</span><span class='line'>installing packages...
+</span><span class='line'>installing png-1.6.12...
+</span><span class='line'>installing libjpeg-turbo-1.3.0nb1...
+</span><span class='line'>installing freetype2-2.5.3nb1...
+</span><span class='line'>installing php55-gd-5.5.16nb1...
+</span><span class='line'><span class="o">===========================================================================</span>
+</span><span class='line'><span class="nv">$NetBSD</span>: MESSAGE.module,v 1.2 2004/11/05 21:50:11 jdolecek Exp <span class="err">$</span>
+</span><span class='line'>
+</span><span class='line'>To <span class="nb">enable </span>this module, add the following to /opt/local/etc/php.ini:
+</span><span class='line'>
+</span><span class='line'>    <span class="nv">extension</span><span class="o">=</span>gd.so
+</span><span class='line'>
+</span><span class='line'>and make sure extension_dir points to the dir where gd.so is.
+</span><span class='line'>
+</span><span class='line'>Then restart your PHP5.5-enabled HTTP server to load this module.
+</span><span class='line'><span class="o">===========================================================================</span>
+</span><span class='line'>pkg_install warnings: 0, errors: 0
+</span><span class='line'>reading <span class="nb">local </span>summary...
+</span><span class='line'>processing <span class="nb">local </span>summary...
+</span><span class='line'>updating database: 100%
+</span><span class='line'>marking php55-gd-5.5.16nb1 as non auto-removable
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Restart PHP-FPM</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>svcadm restart php-fpm
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now browse to <code>http://ip-address</code> and check that the extension (gd) is enabled.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Obtaining a Free One-Year StartSSL SSL/TLS Certificate]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/19/obtaining-a-free-one-year-startssl-ssl-slash-tls-certificate/"/>
+    <updated>2014-10-19T12:51:02+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/19/obtaining-a-free-one-year-startssl-ssl-slash-tls-certificate</id>
+    <content type="html"><![CDATA[<p><a href="https://www.startssl.com/">StartSSL</a> offers free 1-year SSL/TLS certificates. The advantage of having a SSL/TLS certificate signed by a certification authority recognised by most recent browsers (and not your own CA) is that these browsers will not issue all kinds of warnings when they read the certificate; instead the browser will present a nice green padlock next to the https-address.</p>
+
+<p>Before you can issue valid SSL/TLS certificates you must own a domain (e.g. wbnet.dk) and validate that you are the owner of the domain, by being able to receive mails from StartSSL to the postmaster address of the domain. Also, you must validate any mail-addresses (e.g. <a href="&#x6d;&#x61;&#x69;&#108;&#x74;&#x6f;&#x3a;&#116;&#101;&#115;&#116;&#x40;&#119;&#98;&#110;&#x65;&#116;&#x2e;&#100;&#x6b;">&#116;&#x65;&#115;&#x74;&#64;&#119;&#98;&#110;&#x65;&#116;&#x2e;&#100;&#x6b;</a>) you plan to use as the contact person in the certificate(s).</p>
+
+<p>Ars Technica has a nice how-to on <a href="http://arstechnica.com/security/2009/12/how-to-get-set-with-a-secure-sertificate-for-free/">obtaining a free StartSSL SSL/TLS certificate</a>. The following notes are more of a personal reminder on key and certificate request generation.</p>
+
+<p>In this post-Snowden and post-Heartbleed era I would recommend a separate 4096-bit private key <em>per certificate</em>. Generate a password protected 4096-bit private key:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>openssl genrsa -des3 -out test.wbnet.dk.private.key 4096
+</span><span class='line'>Generating RSA private key, <span class="m">4096</span> bit long modulus
+</span><span class='line'>...................................++
+</span><span class='line'>...................................++
+</span><span class='line'>e is <span class="m">65537</span> <span class="o">(</span>0x10001<span class="o">)</span>
+</span><span class='line'>Enter pass phrase <span class="k">for</span> test.wbnet.dk.private.key:
+</span><span class='line'>Verifying - Enter pass phrase <span class="k">for</span> test.wbnet.dk.private.key:
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If you do not want to enter the password every time you start your web-server, create a password-less version of the private key:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>openssl rsa -in test.wbnet.dk.private.key -out test.wbnet.dk.key
+</span><span class='line'>Enter pass phrase <span class="k">for</span> test.wbnet.dk.private.key:
+</span><span class='line'>writing RSA key
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Make sure the password-less key is kept in a safe place (only stored on the web-server) and is only readable by root (chown root.root and chmod 400)</p>
+
+<p>Proceed to create a certificate signing request (csr) (in this case for a 4096-bit certificate using the sha256 algorithm, since sha1 is deprecated) <em>without a challenge password</em> (important information is the Common Name, i.e. the hostname, and the Email Address):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>openssl req -new -newkey rsa:4096 -sha256 <span class="se">\</span>
+</span><span class='line'>  -key test.wbnet.dk.private.key -out test.wbnet.dk.csr
+</span><span class='line'>Enter pass phrase <span class="k">for</span> test.wbnet.dk.private.key:
+</span><span class='line'>You are about to be asked to enter information that will be incorporated
+</span><span class='line'>into your certificate request.
+</span><span class='line'>What you are about to enter is what is called a Distinguished Name or a DN.
+</span><span class='line'>There are quite a few fields but you can leave some blank
+</span><span class='line'>For some fields there will be a default value,
+</span><span class='line'>If you enter <span class="s1">&#39;.&#39;</span>, the field will be left blank.
+</span><span class='line'>-----
+</span><span class='line'>Country Name <span class="o">(</span><span class="m">2</span> letter code<span class="o">)</span> <span class="o">[</span>AU<span class="o">]</span>:DK
+</span><span class='line'>State or Province Name <span class="o">(</span>full name<span class="o">)</span> <span class="o">[</span>Some-State<span class="o">]</span>:Hovedstaden
+</span><span class='line'>Locality Name <span class="o">(</span>eg, city<span class="o">)</span> <span class="o">[]</span>:Roedovre
+</span><span class='line'>Organization Name <span class="o">(</span>eg, company<span class="o">)</span> <span class="o">[</span>Internet Widgits Pty Ltd<span class="o">]</span>:wbnet
+</span><span class='line'>Organizational Unit Name <span class="o">(</span>eg, section<span class="o">)</span> <span class="o">[]</span>:
+</span><span class='line'>Common Name <span class="o">(</span>e.g. server FQDN or YOUR name<span class="o">)</span> <span class="o">[]</span>:test.wbnet.dk
+</span><span class='line'>Email Address <span class="o">[]</span>:postmaster@wbnet.dk
+</span><span class='line'>
+</span><span class='line'>Please enter the following <span class="s1">&#39;extra&#39;</span> attributes
+</span><span class='line'>to be sent with your certificate request
+</span><span class='line'>A challenge password <span class="o">[]</span>:
+</span><span class='line'>An optional company name <span class="o">[]</span>:
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Copy the certificate request:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>root@www:~# cat test.wbnet.dk.csr
+</span><span class='line'>-----BEGIN CERTIFICATE REQUEST-----
+</span><span class='line'>MIIEyDCCArACAQAwgYIxCzAJBgNVBAYTAkRLMRQwEgYDVQQIDAtIb3ZlZHN0YWRl
+</span><span class='line'>bjERMA8GA1UEBwwIUm9lZG92cmUxDjAMBgNVBAoMBXdibmV0MRYwFAYDVQQDDA10
+</span><span class='line'>ZXN0LndibmV0LmRrMSIwIAYJKoZIhvcNAQkBFhNwb3N0bWFzdGVyQHdibmV0LmRr
+</span><span class='line'>MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAtSoD0QpXSIkOoa6WF4Bj
+</span><span class='line'>9Eoewr+BxveSHT0J/fBJTP9jI/XErU1WXLgJUbR444upRV/7RQlmWFKVUcVnHpDo
+</span><span class='line'>Giv+tznsgtNh/Wi6Xj81o4OEhuTz9l2XLkbCvOPBrun6gydDvphDLYKLqHMDX3VL
+</span><span class='line'>HubG87SrCt+8yJ29C8Zppbo4yawEFxJJ+0dgk3gzhYCE9Pfiw0NwPOiGgQ1nSRz9
+</span><span class='line'>Ms0UPzgThQwTpNiAr8xOyjoddmAi8POHexeKnedNk4zXoH6rbJ+P41poEkG0oqsM
+</span><span class='line'>lt5gtiyPaJNXmPww66pX73uJtbo3lhbv9SmN8EO+LmQ3VIMuzaZ+auTJABUzLXPw
+</span><span class='line'>pV/KQlu21/OVvBuCHoGuT0I+u7aU0ppba5XpEjINw9/vjOsoDoYQzS2lJp9zcBeW
+</span><span class='line'>e9aXgZM0YSd88DmDqXWMtePj/yrOSIQ/z7+JRcwjsa8jkE0ssloZqfHxAIALnhNg
+</span><span class='line'>dkmCHrg18Pzg8pX0hLA2IJBc9BVXpr3w0iS/D87cnRmuh96XpbxK6Y8bsNeHQiP7
+</span><span class='line'>strKCYYNt44glpgKgYvAT9C8pqWo+Kl5TPlYwLEssDzZHmuyMwzDx6uQ1CzdKEH6
+</span><span class='line'>KrDzh20hpupon5V+Vk86ar915CWzZ/zcW4yjvZ+pQtkNGJb1nGX874AbT2Ge1lfq
+</span><span class='line'>yJXfRp1rh8+4w9/RLkkvEe8CAwEAAaAAMA0GCSqGSIb3DQEBCwUAA4ICAQCoCeYA
+</span><span class='line'>sXiA4V8VFy5Z2RLQ7ZPc4pIyDMLPtzyx1LIFUEaIhPhhMIpj0GPKwm9QtTiydQh2
+</span><span class='line'>VYkwFB3dAeGwMcTe/UMz6EzvWBIIU2OEwgGid2ZcBUcFUK3pOw0AgVhKPOLNtobC
+</span><span class='line'>ZxVQYkxNEMny6sBaQ+REi+cqJU7UYiYkhtpuX/IcUfuYoN3jqDoTdgsolaVbQ9pq
+</span><span class='line'>/C/19//vpHdzQBh5aWzoD8w6Shd5Bva2B4MflRINiemfnItsYEkA4VwfIGnBms2X
+</span><span class='line'>6LdwTscuC6fQG6CCRu4T35yWiERLCKXowRZkP43tBx70LOP8PG6I6w3jSaMfHgV/
+</span><span class='line'>FbAL9S7uQ1A+2nBtnrPybfL8kZ2LaOkq/65B3VZwJAvlPONUnXKr9Xq6kJSNgA5W
+</span><span class='line'>k2WUhtFA5pVpedYMMX3ucoFTMIDjzcGpFruGLosmncPaJhGzsPbogwh1f+fLB0sq
+</span><span class='line'>Lwr82DqJ3wfPha/pJ35qk9F7pS5CBYArAHtn/F96CytnJCtmOX8vX5D26ODDcVqB
+</span><span class='line'>MPQJzq0fKNoNCqm9jwJxnBYRCk1vjOyGsPGvtGkAFt2AIoHx7e6r0W4TSd1w8g9S
+</span><span class='line'>HaANvpGW2A9k2jGlJ+BqMwRjcG4QD/yLptFKJFwdepWVXC8Umou5oYhjeUCS9byJ
+</span><span class='line'>aX/OTfESaktZ7q27jB9mcpUzqNGgJLG2LwT5fw<span class="o">==</span>
+</span><span class='line'>-----END CERTIFICATE REQUEST-----
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Then go to the <a href="https://www.startssl.com/?app=12">StartSSL control panel</a>. Select <code>Certificates Wizard</code> and select <code>Web Server SSL/TLS Certificate</code> in the drop down and click <code>Continue</code>.</p>
+
+<p><img class="fancybox" src="https://blog.wbnet.dk/images/20141019_startssl_screenshot_1.jpeg" width="600"></p>
+
+<p>On the next page, skip the generation of a private key (<code>Skip</code>). Then paste your Certificate Signing Request into the text box.</p>
+
+<p><img class="fancybox" src="https://blog.wbnet.dk/images/20141019_startssl_screenshot_2.jpeg" width="600"></p>
+
+<p>Click <code>Continue</code> and then <code>Continue</code> again on the next page. Select the proper domain in which the host (test.wbnet.dk) resides (wbnet.dk) and click <code>Continue</code>.</p>
+
+<p><img class="fancybox" src="https://blog.wbnet.dk/images/20141019_startssl_screenshot_3.jpeg" width="600"></p>
+
+<p>On the next page, enter the hostname and click <code>Continue</code>.</p>
+
+<p><img class="fancybox" src="https://blog.wbnet.dk/images/20141019_startssl_screenshot_4.jpeg" width="600"></p>
+
+<p>On the next page click <code>Continue</code> again.</p>
+
+<p>For some hostnames (including test), a manual verification must be made by StartSSL and you will be shown the message below. Otherwise, you will be taken directly to the certificate.</p>
+
+<p><img class="fancybox" src="https://blog.wbnet.dk/images/20141019_startssl_screenshot_5.jpeg" width="600"></p>
+
+<p>After a short period of time (max 3 hours) go to <code>Control Panel</code> and click <code>Retrieve Certificate</code>. Select the proper certificate in the drop down menu:</p>
+
+<p><img class="fancybox" src="https://blog.wbnet.dk/images/20141019_startssl_screenshot_6.jpeg" width="600"></p>
+
+<p>Then click <code>Continue</code>. On the next page your signed certificate is displayed in the text area. Copy this text to a file (<code>test.wbnet.dk.pem</code>) .</p>
+
+<p><img class="fancybox" src="https://blog.wbnet.dk/images/20141019_startssl_screenshot_7.jpeg" width="600"></p>
+
+<p>Next download the <a href="https://www.startssl.com/certs/ca.pem">StartSSL CA root certificate</a> and <a href="https://www.startssl.com/certs/sub.class1.server.ca.pem">class 1 server certificate</a> and concatenate all three certificates into a new certificate:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>wget https://www.startssl.com/certs/ca.pem
+</span><span class='line'>wget https://www.startssl.com/certs/sub.class1.server.ca.pem
+</span><span class='line'><span class="c"># Note, the order of concatenation IS IMPORTANT</span>
+</span><span class='line'>cat test.wbnet.dk.pem sub.class1.server.ca.pem ca.pem &gt; test.wbnet.dk.crt
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now deploy the certificate <code>test.wbnet.dk.crt</code> and the private key <code>test.wbnet.dk.key</code> on your web-server. An example configuration for Nginx is shown below:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="o">[</span>...<span class="o">]</span>
+</span><span class='line'>  server <span class="o">{</span>
+</span><span class='line'>    listen       443<span class="p">;</span>
+</span><span class='line'>    server_name  test.wbnet.dk<span class="p">;</span>
+</span><span class='line'>    ssl on<span class="p">;</span>
+</span><span class='line'>    ssl_certificate      /opt/local/etc/nginx/ssl/wbnet.dk/test.wbnet.dk.crt<span class="p">;</span>
+</span><span class='line'>    ssl_certificate_key  /opt/local/etc/nginx/ssl/wbnet.dk/test.wbnet.dk.key<span class="p">;</span>
+</span><span class='line'>    <span class="o">[</span>...<span class="o">]</span>
+</span><span class='line'>  <span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Photo of the Day: Furnace.]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/19/photo-of-the-day/"/>
+    <updated>2014-10-19T00:00:00+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/19/photo-of-the-day</id>
+    <content type="html"><![CDATA[<p><img class="fancybox" src="https://blog.wbnet.dk/images/20141019_potd.jpeg" width="600" title="&#34;2014-10-19: Furnace.&#34;" alt="&#34;2014-10-19: Furnace.&#34;"></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Photo of the Day: Chestnut Yarn Spider.]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/18/photo-of-the-day/"/>
+    <updated>2014-10-18T00:00:00+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/18/photo-of-the-day</id>
+    <content type="html"><![CDATA[<p><img class="fancybox" src="https://blog.wbnet.dk/images/20141018_potd.jpeg" width="600" title="&#34;2014-10-18: Chestnut Yarn Spider.&#34;" alt="&#34;2014-10-18: Chestnut Yarn Spider.&#34;"></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Photo of the Day: Autumn Is Here. Winter Is Coming.]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/17/photo-of-the-day/"/>
+    <updated>2014-10-17T00:00:00+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/17/photo-of-the-day</id>
+    <content type="html"><![CDATA[<p><img class="fancybox" src="https://blog.wbnet.dk/images/20141017_potd.jpeg" width="600" title="&#34;2014-10-17: Autumn is here. Winter is coming.&#34;" alt="&#34;2014-10-17: Autumn is here. Winter is coming.&#34;"></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Photo of the Day: Freshly Ground]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/16/photo-of-the-day/"/>
+    <updated>2014-10-16T00:00:00+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/16/photo-of-the-day</id>
+    <content type="html"><![CDATA[<p><img class="fancybox" src="https://blog.wbnet.dk/images/20141016_potd.jpeg" width="600" title="&#34;2014-10-16: Freshly Ground&#34;" alt="&#34;2014-10-16: Freshly Ground&#34;"></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Photo of the Day: House of Stone ... And Glitter]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/15/photo-of-the-day/"/>
+    <updated>2014-10-15T00:00:00+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/15/photo-of-the-day</id>
+    <content type="html"><![CDATA[<p><img class="fancybox" src="https://blog.wbnet.dk/images/20141015_potd.jpeg" width="600" title="&#34;2014-10-15: House of Stone ... and Glitter&#34;" alt="&#34;2014-10-15: House of Stone ... and Glitter&#34;"></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Run a QEMU/KVM Virtual Machine in an OmniOS Zone]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/10/run-a-qemu-slash-kvm-virtual-machine-in-an-omnios-zone/"/>
+    <updated>2014-10-10T09:29:31+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/10/run-a-qemu-slash-kvm-virtual-machine-in-an-omnios-zone</id>
+    <content type="html"><![CDATA[<p>It is possible to run QEMU/KVM virtual machines inside an <a href="https://blog.wbnet.dk/2014/10/10/creating-and-cloning-an-omnios-zone/">OmniOS zone</a> but it requires that the kvm kernel module is made available to the zone. Also, any raw volumes for the virtual machines must be made available to the zone. Here is an example zone configuration file for a QEMU/KVM capable zone:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>create -b
+</span><span class='line'><span class="nb">set </span><span class="nv">zonepath</span><span class="o">=</span>/tank/zones/example
+</span><span class='line'><span class="nb">set </span>ip-type<span class="o">=</span>exclusive
+</span><span class='line'><span class="nb">set </span><span class="nv">autoboot</span><span class="o">=</span><span class="nb">true</span>
+</span><span class='line'>add net
+</span><span class='line'><span class="nb">set </span><span class="nv">physical</span><span class="o">=</span>dmzexample0
+</span><span class='line'>end
+</span><span class='line'>add net
+</span><span class='line'><span class="nb">set </span><span class="nv">physical</span><span class="o">=</span>dmzexample1
+</span><span class='line'>end
+</span><span class='line'>add device
+</span><span class='line'><span class="nb">set </span><span class="nv">match</span><span class="o">=</span>/dev/kvm
+</span><span class='line'>end
+</span><span class='line'>add device
+</span><span class='line'><span class="nb">set </span><span class="nv">match</span><span class="o">=</span>/dev/zvol/dsk/tank/zones/kvmexample-vol
+</span><span class='line'>end
+</span><span class='line'>commit
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The <code>set match=/dev/kvm</code> makes the kernel kvm module available to the zone and the <code>set match=/dev/zvol/dsk/tank/zones/kvmexample-vol</code> makes the zfs volume <code>tank/zones/kvmexample-vol</code> available in the zone.</p>
+
+<p>The presence of two virtual network interfaces (<code>dmzexample0</code> and <code>dmzexample1</code>) makes it possible to use one for the zone (and thus VNC into the virtual machine) and the other for the virtual machine.</p>
+
+<p>A sample QEMU/KVM configuration script (<code>/root/kvmexample.sh</code>), in this case for a <a href="https://plex.tv/">Plex Media Server</a>, could look like this (ubuntu 14.04 iso mounted in the zone at <code>med/iso</code> via nfs):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">NAME</span><span class="o">=</span>kvmexample
+</span><span class='line'><span class="nv">VNIC0</span><span class="o">=</span>dmzexample1
+</span><span class='line'><span class="nv">HDD0</span><span class="o">=</span>/dev/zvol/dsk/tank/zones/kvmexample-vol
+</span><span class='line'><span class="nv">CD</span><span class="o">=</span>/med/iso/ubuntu-14.04-server-amd64.iso
+</span><span class='line'><span class="nv">VNC</span><span class="o">=</span>1
+</span><span class='line'><span class="nv">MEM</span><span class="o">=</span>8192
+</span><span class='line'>
+</span><span class='line'><span class="nv">mac0</span><span class="o">=</span><span class="sb">`</span>dladm show-vnic -po macaddress <span class="nv">$VNIC0</span><span class="sb">`</span>
+</span><span class='line'>
+</span><span class='line'>/usr/bin/qemu-system-x86_64 <span class="se">\</span>
+</span><span class='line'>-name <span class="nv">$NAME</span> <span class="se">\</span>
+</span><span class='line'>-boot <span class="nb">cd</span> <span class="se">\</span>
+</span><span class='line'>-enable-kvm <span class="se">\</span>
+</span><span class='line'>-vnc 0.0.0.0:<span class="nv">$VNC</span> -k da <span class="se">\</span>
+</span><span class='line'>-smp <span class="nv">cores</span><span class="o">=</span>10,threads<span class="o">=</span>1,sockets<span class="o">=</span><span class="m">1</span> <span class="se">\</span>
+</span><span class='line'>-m <span class="nv">$MEM</span> <span class="se">\</span>
+</span><span class='line'>-no-hpet <span class="se">\</span>
+</span><span class='line'>-localtime <span class="se">\</span>
+</span><span class='line'>-drive <span class="nv">file</span><span class="o">=</span><span class="nv">$HDD0</span>,if<span class="o">=</span>virtio,cache<span class="o">=</span>none,index<span class="o">=</span><span class="m">0</span> <span class="se">\</span>
+</span><span class='line'>-drive <span class="nv">file</span><span class="o">=</span><span class="nv">$CD</span>,media<span class="o">=</span>cdrom,if<span class="o">=</span>ide,index<span class="o">=</span><span class="m">2</span>  <span class="se">\</span>
+</span><span class='line'>-net nic,vlan<span class="o">=</span>40,name<span class="o">=</span>net0,model<span class="o">=</span>virtio,macaddr<span class="o">=</span><span class="nv">$mac0</span> <span class="se">\</span>
+</span><span class='line'>-net vnic,vlan<span class="o">=</span>40,name<span class="o">=</span>net0,ifname<span class="o">=</span><span class="nv">$VNIC0</span>,macaddr<span class="o">=</span><span class="nv">$mac0</span> <span class="se">\</span>
+</span><span class='line'>-vga std <span class="se">\</span>
+</span><span class='line'>-pidfile /root/<span class="nv">$NAME</span>.pid <span class="se">\</span>
+</span><span class='line'>-daemonize
+</span><span class='line'>
+</span><span class='line'><span class="k">if</span> <span class="o">[</span> <span class="nv">$?</span> -gt <span class="m">0</span> <span class="o">]</span><span class="p">;</span> <span class="k">then</span>
+</span><span class='line'>    <span class="nb">echo</span> <span class="s2">&quot;Failed to start VM&quot;</span>
+</span><span class='line'><span class="k">fi</span>
+</span><span class='line'>
+</span><span class='line'><span class="nv">port</span><span class="o">=</span><span class="sb">`</span>expr <span class="m">5900</span> + <span class="nv">$VNC</span><span class="sb">`</span>
+</span><span class='line'><span class="nv">public_nic</span><span class="o">=</span><span class="k">$(</span>dladm show-vnic<span class="p">|</span>grep vnic0<span class="p">|</span>awk <span class="s1">&#39;{print $2}&#39;</span><span class="k">)</span>
+</span><span class='line'><span class="nv">public_ip</span><span class="o">=</span><span class="k">$(</span>ifconfig <span class="nv">$public_nic</span><span class="p">|</span>grep inet<span class="p">|</span>awk <span class="s1">&#39;{print $2}&#39;</span><span class="k">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;Started VM: $NAME&quot;</span>
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;VNC available at: host IP ${public_ip} port ${port}&quot;</span>
+</span><span class='line'><span class="nb">echo</span> <span class="s2">&quot;QEMU Monitor, do: # telnet localhost $TLN. Note: use Control ] to exit monitor before quit!</span>
+</span><span class='line'><span class="s2">&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>To control (start/stop) the virtual machine as a service using <code>svcadm</code> create a <code>/root/kvmexample.xml</code> manifest (file):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='xml'><span class='line'><span class="cp">&lt;?xml version=&#39;1.0&#39;?&gt;</span>
+</span><span class='line'><span class="cp">&lt;!DOCTYPE service_bundle SYSTEM &#39;/usr/share/lib/xml/dtd/service_bundle.dtd.1&#39;&gt;</span>
+</span><span class='line'><span class="nt">&lt;service_bundle</span> <span class="na">type=</span><span class="s">&#39;manifest&#39;</span> <span class="na">name=</span><span class="s">&#39;export&#39;</span><span class="nt">&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;service</span> <span class="na">name=</span><span class="s">&#39;kvm/kvmexample&#39;</span> <span class="na">type=</span><span class="s">&#39;service&#39;</span> <span class="na">version=</span><span class="s">&#39;0&#39;</span><span class="nt">&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;create_default_instance</span> <span class="na">enabled=</span><span class="s">&#39;true&#39;</span><span class="nt">/&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;single_instance/&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;dependency</span> <span class="na">name=</span><span class="s">&#39;network&#39;</span> <span class="na">grouping=</span><span class="s">&#39;require_all&#39;</span> <span class="na">restart_on=</span><span class="s">&#39;none&#39;</span> <span class="na">type=</span><span class="s">&#39;service&#39;</span><span class="nt">&gt;</span>
+</span><span class='line'>            <span class="nt">&lt;service_fmri</span> <span class="na">value=</span><span class="s">&#39;svc:/milestone/network:default&#39;</span> <span class="nt">/&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;/dependency&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;dependency</span> <span class="na">name=</span><span class="s">&#39;filesystem&#39;</span> <span class="na">grouping=</span><span class="s">&#39;require_all&#39;</span> <span class="na">restart_on=</span><span class="s">&#39;none&#39;</span> <span class="na">type=</span><span class="s">&#39;service&#39;</span><span class="nt">&gt;</span>
+</span><span class='line'>            <span class="nt">&lt;service_fmri</span> <span class="na">value=</span><span class="s">&#39;svc:/system/filesystem/local:default&#39;</span> <span class="nt">/&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;/dependency&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;exec_method</span> <span class="na">name=</span><span class="s">&#39;start&#39;</span> <span class="na">type=</span><span class="s">&#39;method&#39;</span> <span class="na">exec=</span><span class="s">&#39;/root/kvmexample.sh&#39;</span> <span class="na">timeout_seconds=</span><span class="s">&#39;60&#39;</span><span class="nt">/&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;exec_method</span> <span class="na">name=</span><span class="s">&#39;stop&#39;</span> <span class="na">type=</span><span class="s">&#39;method&#39;</span> <span class="na">exec=</span><span class="s">&#39;:kill&#39;</span> <span class="na">timeout_seconds=</span><span class="s">&#39;60&#39;</span><span class="nt">/&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;stability</span> <span class="na">value=</span><span class="s">&#39;Unstable&#39;</span><span class="nt">/&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;template&gt;</span>
+</span><span class='line'>            <span class="nt">&lt;common_name&gt;</span>
+</span><span class='line'>                <span class="nt">&lt;loctext</span> <span class="na">xml:lang=</span><span class="s">&#39;C&#39;</span><span class="nt">&gt;</span>KVM-kvmexample<span class="nt">&lt;/loctext&gt;</span>
+</span><span class='line'>            <span class="nt">&lt;/common_name&gt;</span>
+</span><span class='line'>        <span class="nt">&lt;/template&gt;</span>
+</span><span class='line'>    <span class="nt">&lt;/service&gt;</span>
+</span><span class='line'><span class="nt">&lt;/service_bundle&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Import the manifest:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>svccfg import -f kvmexample.xml
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And start the virtual machine:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>svcadm <span class="nb">enable </span>kvmexample
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Use a VNCviewer to connect to the <strong>zones</strong> ip-address (on port 5901) to view the display output from the virtual machine.</p>
+
+<p>Stop the virtual machine using:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>svcadm disable kvmexample
+</span></code></pre></td></tr></table></div></figure>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Install Packages From Joyent/SmartOS Repository in OmniOS]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/10/install-packages-from-joyent-slash-smartos-repository-in-omnios/"/>
+    <updated>2014-10-10T09:28:19+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/10/install-packages-from-joyent-slash-smartos-repository-in-omnios</id>
+    <content type="html"><![CDATA[<p>There are a few issues with the OmniOS package repositories as mentioned by <strong>gea</strong> of <a href="http://www.napp-it.org/downloads/binaries_en.html">napp-it</a>:</p>
+
+<ul>
+<li>Applications are spread over several repositories</li>
+<li>Applications are sometimes outdated without regular updates</li>
+<li>The repositories contain only a few applications</li>
+<li>The repositories are OS dependent</li>
+</ul>
+
+
+<p>In contrast, the <a href="http://pkgsrc.joyent.com/packages/SmartOS/2014Q2/x86_64/All/">Joyent/SmartOS package repositories</a> contain <em>a lot</em> of useful packages in one place, and are frequently updated.</p>
+
+<p>To use Joyent/SmartOS packages in OmniOS (here in a zone) start by installing gnu-tar (<code>gtar</code>):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>pkg install gnu-tar
+</span><span class='line'>           Packages to install:  1
+</span><span class='line'>       Create boot environment: No
+</span><span class='line'>Create backup boot environment: No
+</span><span class='line'>
+</span><span class='line'>DOWNLOAD               PKGS       FILES    XFER <span class="o">(</span>MB<span class="o">)</span>
+</span><span class='line'>Completed               1/1       41/41      0.9/0.9
+</span><span class='line'>
+</span><span class='line'>PHASE                                        ACTIONS
+</span><span class='line'>Install Phase                                123/123
+</span><span class='line'>
+</span><span class='line'>PHASE                                          ITEMS
+</span><span class='line'>Package State Update Phase                       1/1
+</span><span class='line'>Image State Update Phase                         2/2
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Next, install the Joyent/SmartOS bootstrap loader (modify <code>2014Q2-x86_64</code> to match current repository and architecture):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl http://pkgsrc.joyent.com/packages/SmartOS/bootstrap/bootstrap-2014Q2-x86_64.tar.gz <span class="p">|</span> <span class="se">\</span>
+</span><span class='line'>gtar -zxpf - -C /
+</span><span class='line'>  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+</span><span class='line'>                                 Dload  Upload   Total   Spent    Left  Speed
+</span><span class='line'><span class="m">100</span> 30.9M  <span class="m">100</span> 30.9M    <span class="m">0</span>     <span class="m">0</span>   587k      <span class="m">0</span>  0:00:54  0:00:54 --:--:--  642k
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Since Joyent/SmartOS packages are installed in <code>/opt/local</code> update your path (this can be done permanently by modifying the <code>PATH</code> in <code>~./profile</code>):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">export </span><span class="nv">PATH</span><span class="o">=</span>/opt/local/sbin:/opt/local/bin:<span class="nv">$PATH</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Update the repository database:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>pkgin -y update
+</span><span class='line'>reading <span class="nb">local </span>summary...
+</span><span class='line'>processing <span class="nb">local </span>summary...
+</span><span class='line'>updating database: 100%
+</span><span class='line'>pkg_summary.bz2                                    100% 1919KB 479.8KB/s  29.3KB/s   00:04
+</span><span class='line'>processing remote summary <span class="o">(</span>http://pkgsrc.joyent.com/packages/SmartOS/2014Q2/x86_64/All<span class="o">)</span>...
+</span><span class='line'>updating database: 100%
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>You are ready to search or install packages:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>pkgin search php55-*
+</span><span class='line'>pkgin -y install apache-2.4.10
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>All packages can be viewed at the <a href="http://pkgsrc.joyent.com/packages/SmartOS/2014Q2/x86_64/All/">repository</a>.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Creating and Cloning an OmniOS Zone]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/10/creating-and-cloning-an-omnios-zone/"/>
+    <updated>2014-10-10T08:51:53+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/10/creating-and-cloning-an-omnios-zone</id>
+    <content type="html"><![CDATA[<p>An OmniOS/Solaris (non-global) zone acts as completely isolated virtual server within a single operating system instance and shares the kernel with the global zone. It shares resources (CPU and memory) with the global zone and there is close to no overhead in performance. It is an ideal way to isolate different services on a server.</p>
+
+<p>If you are planning on running multiple zones (e.g one for each service), you can save time and resources (disk space) by installing a template zone (base) and then cloning it to make new zones (see end of this post on how to clone an existing zone).</p>
+
+<p>To create a new zone start by creating a zone configuration file (<code>example.conf</code>):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>create -b
+</span><span class='line'><span class="nb">set </span><span class="nv">zonepath</span><span class="o">=</span>/tank/zones/example
+</span><span class='line'><span class="nb">set </span>ip-type<span class="o">=</span>exclusive
+</span><span class='line'><span class="nb">set </span><span class="nv">autoboot</span><span class="o">=</span><span class="nb">true</span>
+</span><span class='line'>add net
+</span><span class='line'><span class="nb">set </span><span class="nv">physical</span><span class="o">=</span>dmzexample0
+</span><span class='line'>end
+</span><span class='line'>commit
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>A ZFS volume will be created at the zonepath <code>/tank/zones/example</code>. The <code>ip-type=exclusive</code> implies that the network stack is separate from the global-zone. The zone will boot upon system boot due to <code>autoboot=true</code>. A single network interface (<code>dmzexample0</code>) is available from within the zone.</p>
+
+<p>Next create the network interface (in the global zone):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>dladm create-vnic dmzexample0 -l aggr0 -v 40
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>In this case the <code>dmzexample0</code> VNIC uses the link <code>aggr0</code> and is assigned to <code>vlan 40</code>, since the zone is to reside in the DMZ.</p>
+
+<p>Import the zone using <code>zonecfg</code> (in this case the name of the zone will be example):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>zonecfg -z example -f example.conf
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Next install the zone using <code>zoneadm</code> (this takes a couple of minutes):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>zoneadm -z example install
+</span><span class='line'>A ZFS file system has been created <span class="k">for</span> this zone.
+</span><span class='line'>   Publisher: Using omnios <span class="o">(</span>http://pkg.omniti.com/omnios/release/ <span class="o">)</span>.
+</span><span class='line'>   Publisher: Using ms.omniti.com <span class="o">(</span>http://pkg.omniti.com/omniti-ms/<span class="o">)</span>.
+</span><span class='line'>       Image: Preparing at /tank/zones/example/root.
+</span><span class='line'>       Cache: Using /var/pkg/publisher.
+</span><span class='line'>Sanity Check: Looking <span class="k">for</span> <span class="s1">&#39;entire&#39;</span> incorporation.
+</span><span class='line'>  Installing: Packages <span class="o">(</span>output follows<span class="o">)</span>
+</span><span class='line'>           Packages to install: 379
+</span><span class='line'>       Create boot environment:  No
+</span><span class='line'>Create backup boot environment:  No
+</span><span class='line'>            Services to change:   4
+</span><span class='line'>
+</span><span class='line'>DOWNLOAD                                  PKGS       FILES    XFER <span class="o">(</span>MB<span class="o">)</span>
+</span><span class='line'>Completed                              379/379 38943/38943  249.4/249.4
+</span><span class='line'>
+</span><span class='line'>PHASE                                        ACTIONS
+</span><span class='line'>Install Phase                            56633/56633
+</span><span class='line'>
+</span><span class='line'>PHASE                                          ITEMS
+</span><span class='line'>Package State Update Phase                   379/379
+</span><span class='line'>Image State Update Phase                         2/2
+</span><span class='line'>
+</span><span class='line'>        Note: Man pages can be obtained by installing pkg:/system/manual
+</span><span class='line'> Postinstall: Copying SMF seed repository ... <span class="k">done</span>.
+</span><span class='line'>        Done: Installation completed in 200.260 seconds.
+</span><span class='line'>
+</span><span class='line'>  Next Steps: Boot the zone, <span class="k">then</span> log into the zone console <span class="o">(</span>zlogin -C<span class="o">)</span>
+</span><span class='line'>              to <span class="nb">complete </span>the configuration process.
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Boot the zone and log in using <code>zlogin</code> (to exit the zone just type <code>exit</code>):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>zoneadm -z example boot
+</span><span class='line'>zlogin example
+</span><span class='line'><span class="o">[</span>Connected to zone <span class="s1">&#39;example&#39;</span> pts/2<span class="o">]</span>
+</span><span class='line'>OmniOS 5.11     <span class="m">006</span>     June 2014
+</span><span class='line'>root@example:~#
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>List available network interfaces:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>dladm show-vnic
+</span><span class='line'>LINK         OVER         SPEED  MACADDRESS        MACADDRTYPE         VID
+</span><span class='line'>dmzexample0  ?            <span class="m">1000</span>   2:8:20:8:51:e9    random              40
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Create the IP interface and setup static networking:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>ipadm create-if dmzexample0
+</span><span class='line'>ipadm create-addr -T static -a 192.168.0.10/24 dmzexample0/v4static
+</span><span class='line'><span class="c"># for DHCP use</span>
+</span><span class='line'><span class="c"># ipadm create-addr -T dhcp dmzexample0/v4</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Setup routing (if using static networking):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>route -p add default 192.168.0.1
+</span><span class='line'><span class="c"># Additional routes can be set up using</span>
+</span><span class='line'><span class="c"># route -p add 10.0.0.0/24 192.168.0.2</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Setup name resolution by adding nameservers to <code>/etc/resolv.conf</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>nameserver 192.168.0.1
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Finally configure NSS to use DNS:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>cp /etc/nsswitch.conf<span class="o">{</span>,.bak<span class="o">}</span>
+</span><span class='line'>cp /etc/nsswitch.<span class="o">{</span>dns,conf<span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Verify internet access:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>ping google.com
+</span><span class='line'>google.com is alive
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>After having successfully installed the zone you might want to take a look at:</p>
+
+<ul>
+<li><a href="https://blog.wbnet.dk/2014/10/10/install-packages-from-joyent-slash-smartos-repository-in-omnios/">Install Packages From Joyent/SmartOS Repository</a></li>
+<li><a href="http://blog.wbnet.dk/2014/10/10/run-a-qemu-slash-kvm-virtual-machine-in-an-omnios-zone/">Run a QEMU/KVM Virtual Machine in an OmniOS Zone</a></li>
+</ul>
+
+
+<p>To <strong>clone</strong> an existing zone start by shutting down the zone (from the global zone):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>zoneadm -z example halt
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Copy the configuration file (<code>cp example.conf exampleclone.conf</code>) and modify as appropriate (at least <code>zonepath</code> and <code>physical</code> network):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>create -b
+</span><span class='line'><span class="nb">set </span><span class="nv">zonepath</span><span class="o">=</span>/tank/zones/exampleconf
+</span><span class='line'><span class="nb">set </span>ip-type<span class="o">=</span>exclusive
+</span><span class='line'><span class="nb">set </span><span class="nv">autoboot</span><span class="o">=</span><span class="nb">true</span>
+</span><span class='line'>add net
+</span><span class='line'><span class="nb">set </span><span class="nv">physical</span><span class="o">=</span>dmzexampleconf0
+</span><span class='line'>end
+</span><span class='line'>commit
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Remember to create any new network interfaces:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>dladm create-vnic dmzexampleclone0 -l aggr0 -v 40
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Import the new configuration as a new zone:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>zonecfg -z exampleclone -f exampleclone.conf
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p></p>
+
+<p>And then clone the existing <code>example</code> zone using <code>zoneadm</code> and boot it:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>zoneadm -z exampleclone clone example
+</span><span class='line'>zoneadm -z exampleclone boot
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p></p>
+
+<p>Next, login and modify network settings (see above).</p>
+
+<p>Finally, to delete a zone start by shutting it down:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>zoneadm -z exampleclone halt
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Then <code>uninstall</code> using <code>zoneadm</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>zoneadm -z exampleclone uninstall -F
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And delete the configuration using <code>zonecfg</code>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>zonecfg -z exampleclone delete -F
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Make sure the zone no longer appears in the list of zones:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>zoneadm list -iv
+</span></code></pre></td></tr></table></div></figure>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Solaris/OmniOS Tape Drive and Autochanger Device Names]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/09/solaris-slash-omnios-tape-drive-and-autochanger-device-names/"/>
+    <updated>2014-10-09T14:28:58+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/09/solaris-slash-omnios-tape-drive-and-autochanger-device-names</id>
+    <content type="html"><![CDATA[<p>In Solaris (and thus OmniOS) tape drives are mapped to /dev/rmt (raw media tape) using the following <a href="http://docs.oracle.com/cd/E23824_01/html/821-1459/bkuptapedevice-27909.html#scrolltoc">device naming scheme</a>:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>/dev/rmt/XAbn
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>X is the drive number (0-n)</li>
+<li>A is the optional density (c for compressed, u for ultra)</li>
+<li>b for BSD compatible behaviour (needed for <a href="http://blog.bacula.org/">bacula</a>)</li>
+<li>n is an optional no-rewind (n) [omit for rewind]</li>
+</ul>
+
+
+<p>So, using compression and BSD compatible behaviour with no-rewind, the two LTO3 tape drives in my <a href="http://www.dell.com/us/business/p/powervault-ml6010/pd">PowerVault ML6010</a> are at:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>/dev/rmt/0cbn
+</span><span class='line'>/dev/rmt/1cbn
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The autochanger is mapped to:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>/dev/scsi/changer/cXX
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Where cXX is the SCSI controller number.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Cisco SG300 and OmniOS Link Aggregation Hash Policy Issues]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/09/cisco-sg300-and-omnios-link-aggregation-hash-policy-issues/"/>
+    <updated>2014-10-09T12:31:21+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/09/cisco-sg300-and-omnios-link-aggregation-hash-policy-issues</id>
+    <content type="html"><![CDATA[<p>Having installed OmniOS on my SuperMicro X9DR7-LN4F I configured a <a href="http://en.wikipedia.org/wiki/Link_aggregation">link aggregation</a> to my <a href="http://www.cisco.com/c/en/us/products/collateral/switches/small-business-smart-switches/data_sheet_c78-610061.html">Cisco SG300-28</a> switch, but found the network connection to be very erratic. It turns out that OmniOS by default uses a <a href="http://en.wikipedia.org/wiki/Link_aggregation">L4 LACP hash policy</a> (piping by mac-address, IP-address and TCP/UDP port) whereas Cisco SG300 to my knowledge (i.e. the SG300 administration interface) only supports L3 LACP hash policy (mac-address, and IP-address). In other words, what traffic goes down what pipe was not in sync between OmniOS and the switch.</p>
+
+<p>The fix is simple, specify the hash policy when creating the link aggregation (aggr0):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>dladm create-aggr -P L3 -d igb0 -d igb1 -d igb2 -d igb3 aggr0
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>or update an existing link aggregation (aggr0) using:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>dladm modify-aggr -P L3 aggr0
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>That stabilized network connections.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Nexus 7 (2013) LTE Error While Searching for Networks]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/08/nexus-7-2013-lte-error-while-searching-for-networks/"/>
+    <updated>2014-10-08T20:51:31+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/08/nexus-7-2013-lte-error-while-searching-for-networks</id>
+    <content type="html"><![CDATA[<p><img class="right" src="https://blog.wbnet.dk/images/nexus7_lte_error_while_searching_for_network.jpeg" width="300" title="Error While Searching for Networks" > Back in September my Nexus 7 LTE (2013 model) tablet lost the ability to connect to cellular networks out of the blue while running Android 4.4.3. My network is 3 (in Denmark) and the SIM card works in an iPad. So this is specific for the Nexus 7 LTE. When I browse to: <code>Settings-&gt;More...-&gt;Mobile Networks-&gt;Network Operators-&gt;Search Networks</code> all I get is &ldquo;Error while searching for networks&rdquo;.</p>
+
+<p><img class="right" src="https://blog.wbnet.dk/images/nexus7_lte_cannot_connect_to_network_right_now.jpeg" width="470" title="Can't connect to this network right now. Try again later" > Selecting <code>Choose automatically</code> results in &ldquo;Can&rsquo;t connect to this network right now. Try again later.&rdquo;</p>
+
+<p><a href="https://www.google.com/search?q=nexus+7+lte+error+searching+for+network">A lot of people have the same issues with lost cellular connectivity of Nexus 7 LTE tablets</a>.</p>
+
+<p>I have tried the following remedies (none of them worked):</p>
+
+<ul>
+<li>Factory reset <img class="right" src="https://blog.wbnet.dk/images/nexus7_lte_airplane_mode_disabled.jpeg" width="200" title="No Airplane Mode" ></li>
+<li>Downgrade to Android 4.4.2 (KOT49H)
+using the <a href="https://developers.google.com/android/nexus/images?hl=ja">official google factory image (razorg)</a></li>
+<li>Downgrade to Android 4.3 (JLS36C), using official image</li>
+<li>Re-install Android 4.4.3 (KTU84L) and perform official OTA update (via wifi) to Android 4.4.4</li>
+<li>Airplane mode enable/disable</li>
+</ul>
+
+
+<p><img class="right" src="https://blog.wbnet.dk/images/nexus7_lte_airplane_mode_enabled.jpeg" width="200" title="Airplane Mode" > The airplane switch is somewhat interesting. When airplane mode mode is <strong>off</strong>, the cellular status reads &ldquo;No Service&rdquo;, but when airplane mode is <strong>on</strong> it reads 3 (my network provider). So the Nexus 7 LTE can at least read my SIM card, how else would it know I am using 3?</p>
+
+<p>According to this <a href="http://code.google.com/p/android/issues/detail?id=73236#c13">thread</a> Google was aware of the issue well in advance of the release of Android 4.4.4 for the LTE model, but did not fix it. That is really lousy customer service by Google and Asus. According to Google tech (in the same thread), we are told to wait for Android L which <em>might</em> be released for the Nexus 7 (2013) model and <em>might</em> fix the issue.</p>
+
+<p>I filed an RMA (return merchandise authorization) with <a href="http://www.mediamarkt.de/">Media Markt</a> today and they will do a repair or replacement of my Nexus 7 LTE under warranty (less than a year old). Now that is good customer service.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[SuperMicro X9DR7-LN4F SATA Issues When Using On-board LSI SAS2308 Controller]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/07/supermicro-x9dr7-ln4f-sata-issues-when-using-on-board-lsi-sas2308-controller/"/>
+    <updated>2014-10-07T16:31:03+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/07/supermicro-x9dr7-ln4f-sata-issues-when-using-on-board-lsi-sas2308-controller</id>
+    <content type="html"><![CDATA[<p>One of the reasons I bought a <a href="http://www.supermicro.com/products/motherboard/xeon/c600/X9DR7-LN4F.cfm">SuperMicro X9DR7-LN4F</a> for my <a href="https://blog.wbnet.dk/2014/10/06/all-in-one-server-hardware/">All-in-One server</a> was the ability to use a total of 18 drives with the on-board controllers:</p>
+
+<ul>
+<li>8 disks on the LSI SAS2308 (SAS2)</li>
+<li>6 drives on the Intel C602 (Port 0-5, two SATA3 and four SATA2)</li>
+<li>4 drives on the SCU (SATA2).</li>
+</ul>
+
+
+<p>Unfortunately this turned out not to work (running BIOS v3.0a from 10-Sep-2013, latest available at the time of writing). Thomas Krenn <a href="http://www.thomas-krenn.com/en/wiki/Supermicro_X9DR7-LN4F_Motherboard">mentions issues</a> with simultaneous use of the 4 SCU SATA2 ports and the SAS2308 controller. In my experience <strong>only</strong> the 2 SATA3 ports can be used when the SAS-2308 is operational rendering this this motherboard capable of supporting only 10 disks rather than 18. <strong>I would have liked to have that information before the purchase!</strong></p>
+
+<p>I ended up buying an <a href="http://www.lsi.com/products/host-bus-adapters/pages/lsi-sas-9201-16i.aspx">LSI SAS 9201-16i HBA</a> ahead of time.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Preparing Samsung HD204UI as 4K Sector Drive for Use in ZFS Zpool]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/07/preparing-samsung-hd204ui-as-4k-sector-drive-for-use-in-zfs-zpool/"/>
+    <updated>2014-10-07T16:22:20+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/07/preparing-samsung-hd204ui-as-4k-sector-drive-for-use-in-zfs-zpool</id>
+    <content type="html"><![CDATA[<p>I had six <a href="http://www.storagereview.com/samsung_spinpoint_f4eg_review_hd204ui">Samsung HD204UI</a> drives from a previous NAS that I wanted to use in a zpool (two vdevs each consisting of a
+ <a href="http://constantin.glez.de/blog/2010/01/home-server-raid-greed-and-why-mirroring-still-best">three-way mirror</a>). The HD204UI drives <em>are</em> advanced format drives with 4k sectors, but they report a 512 byte sector size to the OS. This can be overcome in zfs by forcing 4k size in <code>sd.conf</code> and using <code>ashift=12</code> when creating the zpool.</p>
+
+<p>Before creating a zpool the drives must be prepared so that zfs and disk sectors are aligned.
+The following approach is gleaned from the <a href="http://wiki.illumos.org/display/illumos/ZFS+and+Advanced+Format+disks">illumos wiki entry on the subject by George Wilson</a>.</p>
+
+<p>To find the device names of all disks use the <code>format</code> command (use <code>Ctrl-C</code> to exit):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>root@srv01:~# format
+</span><span class='line'>Searching <span class="k">for</span> disks...done
+</span><span class='line'>...
+</span><span class='line'>AVAILABLE DISK SELECTIONS:
+</span><span class='line'>...
+</span><span class='line'>       2. c3t50024E900496C9E7d0 &lt;ATA-SAMSUNG HD204UI-0001-1.82TB&gt;
+</span><span class='line'>          /scsi_vhci/disk@g50024e900496c9e7
+</span><span class='line'>...
+</span><span class='line'>Specify disk <span class="o">(</span>enter its number<span class="o">)</span>:
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>To use 4K sectors the partition table must be changed to a GUID partition table (GPT). Use the <code>mklabel gpt</code> command to change partition table (this will destroy all data on the disk):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>parted /dev/rdsk/c3t50024E900496C9E7d0 mklabel gpt
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>To align sectors create a partition which starts at sector 256 (256 sectors of 512 bytes is 131072 bytes or 32 4K sectors, i.e. aligned). The size of the partition should be total number of disk sectors minus 16640 sectors (256 sectors for start + 16384 sectors for down-sizing to allow new disks of identical size to have slightly different geometry and still be used as replacement for the drive we are partitioning). 3907029168 sectors minus 16640 sectors equals 3907012528 sectors:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>parted /dev/rdsk/c3t5000CCA23DC00778d0p0 uni s mkpart zfs solaris <span class="m">256</span> 3907012528
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The disk is now ready to use in a zpool.</p>
+]]></content>
+  </entry>
+  
+</feed>

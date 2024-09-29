@@ -1,0 +1,289 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Nexus 7 (2013) LTE Error While Searching for Networks - Balling&#8217;s Bits</title>
+  <meta name="author" content="Kristoffer Winther Balling">
+
+  
+  <meta name="description" content="Back in September my Nexus 7 LTE (2013 model) tablet lost the ability to connect to cellular networks out of the blue while running Android 4.4.3. &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="https://blog.wbnet.dk/2014/10/08/nexus-7-2013-lte-error-while-searching-for-networks">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="Balling's Bits" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<!-- Add fancyBox -->
+<link rel="stylesheet" href="/stylesheets/jquery.fancybox.css" type="text/css" media="screen" />
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">Balling&#8217;s Bits</a></h1>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:blog.wbnet.dk" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/categories/tech">Tech Stuff</a></li>
+  <li><a href="/blog/categories/r">R</a></li>
+  <li><a href="/blog/categories/photo-of-the-day">Photos</a></li>
+  <li><a href="/blog/categories/opskrifter">Opskrifter</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Nexus 7 (2013) LTE Error While Searching for Networks</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2014-10-08T20:51:31+02:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>8</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>8:51 pm</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p><img class="right" src="/images/nexus7_lte_error_while_searching_for_network.jpeg" width="300" title="Error While Searching for Networks" > Back in September my Nexus 7 LTE (2013 model) tablet lost the ability to connect to cellular networks out of the blue while running Android 4.4.3. My network is 3 (in Denmark) and the SIM card works in an iPad. So this is specific for the Nexus 7 LTE. When I browse to: <code>Settings-&gt;More...-&gt;Mobile Networks-&gt;Network Operators-&gt;Search Networks</code> all I get is &ldquo;Error while searching for networks&rdquo;.</p>
+
+<p><img class="right" src="/images/nexus7_lte_cannot_connect_to_network_right_now.jpeg" width="470" title="Can't connect to this network right now. Try again later" > Selecting <code>Choose automatically</code> results in &ldquo;Can&rsquo;t connect to this network right now. Try again later.&rdquo;</p>
+
+<p><a href="https://www.google.com/search?q=nexus+7+lte+error+searching+for+network">A lot of people have the same issues with lost cellular connectivity of Nexus 7 LTE tablets</a>.</p>
+
+<p>I have tried the following remedies (none of them worked):</p>
+
+<ul>
+<li>Factory reset <img class="right" src="/images/nexus7_lte_airplane_mode_disabled.jpeg" width="200" title="No Airplane Mode" ></li>
+<li>Downgrade to Android 4.4.2 (KOT49H)
+using the <a href="https://developers.google.com/android/nexus/images?hl=ja">official google factory image (razorg)</a></li>
+<li>Downgrade to Android 4.3 (JLS36C), using official image</li>
+<li>Re-install Android 4.4.3 (KTU84L) and perform official OTA update (via wifi) to Android 4.4.4</li>
+<li>Airplane mode enable/disable</li>
+</ul>
+
+
+<p><img class="right" src="/images/nexus7_lte_airplane_mode_enabled.jpeg" width="200" title="Airplane Mode" > The airplane switch is somewhat interesting. When airplane mode mode is <strong>off</strong>, the cellular status reads &ldquo;No Service&rdquo;, but when airplane mode is <strong>on</strong> it reads 3 (my network provider). So the Nexus 7 LTE can at least read my SIM card, how else would it know I am using 3?</p>
+
+<p>According to this <a href="http://code.google.com/p/android/issues/detail?id=73236#c13">thread</a> Google was aware of the issue well in advance of the release of Android 4.4.4 for the LTE model, but did not fix it. That is really lousy customer service by Google and Asus. According to Google tech (in the same thread), we are told to wait for Android L which <em>might</em> be released for the Nexus 7 (2013) model and <em>might</em> fix the issue.</p>
+
+<p>I filed an RMA (return merchandise authorization) with <a href="http://www.mediamarkt.de/">Media Markt</a> today and they will do a repair or replacement of my Nexus 7 LTE under warranty (less than a year old). Now that is good customer service.</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Kristoffer Winther Balling</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2014-10-08T20:51:31+02:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>8</span><span class='date-suffix'>th</span>, <span class='date-year'>2014</span></span> <span class='time'>8:51 pm</span></time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/hardware/'>hardware</a>, <a class='category' href='/blog/categories/tech/'>tech</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="//twitter.com/share" class="twitter-share-button" data-url="https://blog.wbnet.dk/2014/10/08/nexus-7-2013-lte-error-while-searching-for-networks/" data-via="kwballing" data-counturl="https://blog.wbnet.dk/2014/10/08/nexus-7-2013-lte-error-while-searching-for-networks/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/2014/10/07/supermicro-x9dr7-ln4f-sata-issues-when-using-on-board-lsi-sas2308-controller/" title="Previous Post: SuperMicro X9DR7-LN4F SATA Issues When Using On-board LSI SAS2308 Controller">&laquo; SuperMicro X9DR7-LN4F SATA Issues When Using On-board LSI SAS2308 Controller</a>
+      
+      
+        <a class="basic-alignment right" href="/2014/10/09/cisco-sg300-and-omnios-link-aggregation-hash-policy-issues/" title="Next Post: Cisco SG300 and OmniOS Link Aggregation Hash Policy Issues">Cisco SG300 and OmniOS Link Aggregation Hash Policy Issues &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Kristoffer W. Balling</h1>
+  <p>Geek. Father-of-two. Principal Scientist.</p>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/2015/05/31/fully-encrypted-hetzner-vx6-vserver-with-ubuntu-14-dot-04-lts/">LUKS Encrypted Hetzner VX6 vServer With Ubuntu 14.04 LTS</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/25/setting-up-nemid-on-hardware-on-ubuntu-14-dot-04-lts/">Setting Up NEMID on Hardware on Ubuntu 14.04 LTS</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/15/dell-inspiron-1720-will-not-boot-caps-lock-blinking/">Dell Inspiron 1720 Will Not Boot - CAPS Lock Blinking</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04/">Installing R Packages RCurl and XML on Ubuntu 14.04</a>
+      </li>
+    
+      <li class="post">
+        <a href="/2014/10/22/setting-up-nginx-for-ssl-slash-tls/">Setting Up Nginx for SSL/TLS</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/kwballing">@kwballing</a> on GitHub
+  
+  <script type="text/javascript">
+    $(document).ready(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'kwballing',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/80x15.png" /></a> <span xmlns:dct="https://purl.org/dc/terms/" property="dct:title">Balling&#8217;s Bits</span> by <a xmlns:cc="https://creativecommons.org/ns#" href="https://blog.wbnet.dk" property="cc:attributionName" rel="cc:attributionURL">Kristoffer Winther Balling</a> is licensed under a <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.<br />
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'ballingsbits';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'https://blog.wbnet.dk/2014/10/08/nexus-7-2013-lte-error-while-searching-for-networks/';
+        var disqus_url = 'https://blog.wbnet.dk/2014/10/08/nexus-7-2013-lte-error-while-searching-for-networks/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+<!-- Add fancyBox -->
+<script type="text/javascript" src="/javascripts/jquery.fancybox.pack.js"></script>
+<script type="text/javascript" src="/javascripts/wbnet.js"></script>
+
+
+
+</body>
+</html>

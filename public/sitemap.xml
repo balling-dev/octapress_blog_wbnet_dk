@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2015/05/31/fully-encrypted-hetzner-vx6-vserver-with-ubuntu-14-dot-04-lts/</loc>
+    
+    <lastmod>2015-05-31T09:05:54+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/11/25/setting-up-nemid-on-hardware-on-ubuntu-14-dot-04-lts/</loc>
+    
+    <lastmod>2014-11-25T20:49:12+01:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/11/15/dell-inspiron-1720-will-not-boot-caps-lock-blinking/</loc>
+    
+    <lastmod>2014-11-15T08:59:27+01:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/11/03/installing-r-packages-rcurl-and-xml-on-ubuntu-14-dot-04/</loc>
+    
+    <lastmod>2014-11-03T20:14:16+01:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/22/setting-up-nginx-for-ssl-slash-tls/</loc>
+    
+    <lastmod>2014-10-22T09:27:08+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/21/setting-up-nginx-and-php-fpm-in-an-omnios-zone/</loc>
+    
+    <lastmod>2014-10-21T22:41:35+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/19/obtaining-a-free-one-year-startssl-ssl-slash-tls-certificate/</loc>
+    
+    <lastmod>2014-10-19T12:51:02+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/19/photo-of-the-day/</loc>
+    
+    <lastmod>2014-10-19T00:00:00+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/18/photo-of-the-day/</loc>
+    
+    <lastmod>2014-10-18T00:00:00+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/17/photo-of-the-day/</loc>
+    
+    <lastmod>2014-10-17T00:00:00+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/16/photo-of-the-day/</loc>
+    
+    <lastmod>2014-10-16T00:00:00+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/15/photo-of-the-day/</loc>
+    
+    <lastmod>2014-10-15T00:00:00+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/10/run-a-qemu-slash-kvm-virtual-machine-in-an-omnios-zone/</loc>
+    
+    <lastmod>2014-10-10T09:29:31+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/10/install-packages-from-joyent-slash-smartos-repository-in-omnios/</loc>
+    
+    <lastmod>2014-10-10T09:28:19+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/10/creating-and-cloning-an-omnios-zone/</loc>
+    
+    <lastmod>2014-10-10T08:51:53+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/09/solaris-slash-omnios-tape-drive-and-autochanger-device-names/</loc>
+    
+    <lastmod>2014-10-09T14:28:58+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/09/cisco-sg300-and-omnios-link-aggregation-hash-policy-issues/</loc>
+    
+    <lastmod>2014-10-09T12:31:21+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/08/nexus-7-2013-lte-error-while-searching-for-networks/</loc>
+    
+    <lastmod>2014-10-08T20:51:31+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/07/supermicro-x9dr7-ln4f-sata-issues-when-using-on-board-lsi-sas2308-controller/</loc>
+    
+    <lastmod>2014-10-07T16:31:03+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/07/preparing-samsung-hd204ui-as-4k-sector-drive-for-use-in-zfs-zpool/</loc>
+    
+    <lastmod>2014-10-07T16:22:20+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/07/why-omnios-for-all-in-one-server/</loc>
+    
+    <lastmod>2014-10-07T11:45:33+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/07/how-to-apply-cpu-thermal-paste/</loc>
+    
+    <lastmod>2014-10-07T09:04:01+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/10/06/all-in-one-server-hardware/</loc>
+    
+    <lastmod>2014-10-06T09:42:50+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/05/18/pandekager/</loc>
+    
+    <lastmod>2014-05-18T09:15:46+02:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/02/22/rugbroed/</loc>
+    
+    <lastmod>2014-02-22T08:11:21+01:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/01/11/firsergryde/</loc>
+    
+    <lastmod>2014-01-11T19:06:13+01:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/01/11/kringle/</loc>
+    
+    <lastmod>2014-01-11T07:56:17+01:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/01/05/lagkage/</loc>
+    
+    <lastmod>2014-01-05T20:05:00+01:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/01/05/kagemand/</loc>
+    
+    <lastmod>2014-01-05T19:15:54+01:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/2014/01/05/brunkager/</loc>
+    
+    <lastmod>2014-01-05T07:49:54+01:00</lastmod>
+    
+    <priority>0.8</priority>
+  </url>
+  
+  
+  <url>
+    <loc>https://blog.wbnet.dk/</loc>
+    <lastmod>2015-06-01T11:34:54+02:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  
+  <url>
+    <loc>https://blog.wbnet.dk/archives/</loc>
+    <lastmod>2015-06-01T11:34:54+02:00</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  
+  
+  <url>
+    <loc>https://blog.wbnet.dk/custom/navigation.html</loc>
+    <lastmod>2014-10-08T06:51:00Z</lastmod>
+    <priority>0.6</priority>
+  </url>
+  
+</urlset>

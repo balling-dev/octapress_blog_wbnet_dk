@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: 
+
+Sitemap: https://blog.wbnet.dk/sitemap.xml 

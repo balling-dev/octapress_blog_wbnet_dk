@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Zfs | Balling's Bits]]></title>
+  <link href="https://blog.wbnet.dk/blog/categories/zfs/atom.xml" rel="self"/>
+  <link href="https://blog.wbnet.dk/"/>
+  <updated>2015-06-01T11:34:54+02:00</updated>
+  <id>https://blog.wbnet.dk/</id>
+  <author>
+    <name><![CDATA[Kristoffer Winther Balling]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Preparing Samsung HD204UI as 4K Sector Drive for Use in ZFS Zpool]]></title>
+    <link href="https://blog.wbnet.dk/2014/10/07/preparing-samsung-hd204ui-as-4k-sector-drive-for-use-in-zfs-zpool/"/>
+    <updated>2014-10-07T16:22:20+02:00</updated>
+    <id>https://blog.wbnet.dk/2014/10/07/preparing-samsung-hd204ui-as-4k-sector-drive-for-use-in-zfs-zpool</id>
+    <content type="html"><![CDATA[<p>I had six <a href="http://www.storagereview.com/samsung_spinpoint_f4eg_review_hd204ui">Samsung HD204UI</a> drives from a previous NAS that I wanted to use in a zpool (two vdevs each consisting of a
+ <a href="http://constantin.glez.de/blog/2010/01/home-server-raid-greed-and-why-mirroring-still-best">three-way mirror</a>). The HD204UI drives <em>are</em> advanced format drives with 4k sectors, but they report a 512 byte sector size to the OS. This can be overcome in zfs by forcing 4k size in <code>sd.conf</code> and using <code>ashift=12</code> when creating the zpool.</p>
+
+<p>Before creating a zpool the drives must be prepared so that zfs and disk sectors are aligned.
+The following approach is gleaned from the <a href="http://wiki.illumos.org/display/illumos/ZFS+and+Advanced+Format+disks">illumos wiki entry on the subject by George Wilson</a>.</p>
+
+<p>To find the device names of all disks use the <code>format</code> command (use <code>Ctrl-C</code> to exit):</p>
+
+<pre><code class="bash">root@srv01:~# format
+Searching for disks...done
+...
+AVAILABLE DISK SELECTIONS:
+...
+       2. c3t50024E900496C9E7d0 &lt;ATA-SAMSUNG HD204UI-0001-1.82TB&gt;
+          /scsi_vhci/disk@g50024e900496c9e7
+...
+Specify disk (enter its number):
+</code></pre>
+
+<p>To use 4K sectors the partition table must be changed to a GUID partition table (GPT). Use the <code>mklabel gpt</code> command to change partition table (this will destroy all data on the disk):</p>
+
+<pre><code class="bash">parted /dev/rdsk/c3t50024E900496C9E7d0 mklabel gpt
+</code></pre>
+
+<p>To align sectors create a partition which starts at sector 256 (256 sectors of 512 bytes is 131072 bytes or 32 4K sectors, i.e. aligned). The size of the partition should be total number of disk sectors minus 16640 sectors (256 sectors for start + 16384 sectors for down-sizing to allow new disks of identical size to have slightly different geometry and still be used as replacement for the drive we are partitioning). 3907029168 sectors minus 16640 sectors equals 3907012528 sectors:</p>
+
+<pre><code class="bash">parted /dev/rdsk/c3t5000CCA23DC00778d0p0 uni s mkpart zfs solaris 256 3907012528
+</code></pre>
+
+<p>The disk is now ready to use in a zpool.</p>
+]]></content>
+  </entry>
+  
+</feed>
